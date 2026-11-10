@@ -7,6 +7,7 @@ import java.util.Map;
 import org.mitre.synthea.engine.Module;
 import org.mitre.synthea.helpers.Attributes;
 import org.mitre.synthea.helpers.Attributes.Inventory;
+import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
 import org.mitre.synthea.world.agents.Provider;
@@ -232,7 +233,9 @@ public final class EncounterModule extends Module {
       if (ageInMonths <= 1) {
         interval = Utilities.convertTime("months", 1);
       } else if (ageInMonths <= 5) {
-        interval = Utilities.convertTime("months", 2);
+        // the UK schedule immunises at 8, 12 and 16 weeks, so needs monthly infant visits
+        interval = Utilities.convertTime("months",
+            Config.getAsInteger("generate.wellness.infant_visit_interval_months", 2));
       } else if (ageInMonths <= 17) {
         interval = Utilities.convertTime("months", 3);
       } else {
