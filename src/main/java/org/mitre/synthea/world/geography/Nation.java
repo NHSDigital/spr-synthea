@@ -28,7 +28,7 @@ public enum Nation {
   UPSTREAM(null, null, "Massachusetts", null);
 
   public static final String COUNTRY_CODE_KEY = "generate.geography.country_code";
-  public static final String DEFAULT_COUNTRY_CODE = "US";
+  public static final String DEFAULT_COUNTRY_CODE = "GB-ENG";
 
   /**
    * The nation and resource paths for one configuration version; see {@link #resolved()}.

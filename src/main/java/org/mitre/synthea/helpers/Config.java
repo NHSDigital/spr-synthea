@@ -14,6 +14,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * Provides methods to load, retrieve, and manipulate configuration values.
  */
 public abstract class Config {
+  /** Classpath resource loaded after synthea.properties, if present, to override defaults. */
+  public static final String OVERRIDES_RESOURCE = "/synthea-overrides.properties";
   private static Properties properties = new Properties();
   /** Incremented on every change, so callers can cache values derived from the config. */
   private static final AtomicLong version = new AtomicLong();
@@ -23,6 +25,15 @@ public abstract class Config {
       load(Config.class.getResourceAsStream("/synthea.properties"));
     } catch (IOException e) {
       System.err.println("Unable to load default properties file");
+      e.printStackTrace();
+    }
+    // Optional overrides on the classpath, e.g. the test suite pins US data this way.
+    try (InputStream overrides = Config.class.getResourceAsStream(OVERRIDES_RESOURCE)) {
+      if (overrides != null) {
+        load(overrides);
+      }
+    } catch (IOException e) {
+      System.err.println("Unable to load " + OVERRIDES_RESOURCE);
       e.printStackTrace();
     }
   }

@@ -1,7 +1,7 @@
 # England (GB-ENG) data
 
-Synthea uses this folder when `generate.geography.country_code = GB-ENG`. The codes are the UK
-government country codes (ISO 3166-2), listed at
+Synthea uses this folder when `generate.geography.country_code = GB-ENG`, which is the default in
+`synthea.properties`. The codes are the UK government country codes (ISO 3166-2), listed at
 https://www.gov.uk/government/publications/open-standards-for-government/country-codes.
 `org.mitre.synthea.world.geography.Nation` selects the nation and finds its files.
 
@@ -19,6 +19,8 @@ Setting the nation to England also turns on:
 | `timezones.csv` | Time zone for each region | `generate.geography.timezones.default_file` |
 | `names.yml` | Name lists by origin, the `name_origins` rules that choose them, and UK street types | `generate.names.default_file` |
 | `ethnicity.json` | Ethnic groups, NHS ethnic category weights and displays, and main language by group | `generate.demographics.ethnicity_file` |
+| `providers/` | NHS hospitals, GP practices and urgent care sites in the South West (see `providers/README.md`) | `generate.providers.<type>.default_file` |
+| `payers/` | NHS England as the single payer | `generate.payers.*` |
 
 Synthea looks for each file in this order:
 

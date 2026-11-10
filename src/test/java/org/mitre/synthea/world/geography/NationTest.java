@@ -13,6 +13,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.DefaultRandomNumberGenerator;
+import org.mitre.synthea.helpers.Utilities;
 
 /**
  * Checks nation selection from generate.geography.country_code and per-nation resource lookup.
@@ -30,13 +31,13 @@ public class NationTest {
   }
 
   @Test
-  public void englandSettings() {
+  public void englandIsTheDefault() {
+    Config.remove(Nation.COUNTRY_CODE_KEY);
     assertEquals(Nation.ENGLAND, Nation.current());
     assertEquals("GB-ENG", Nation.configuredCode());
     assertEquals("GB", Nation.isoCountryCode());
     assertEquals("South West", Nation.defaultState());
     assertEquals("http://hl7.org/fhir/sid/passport-GBR", Nation.passportUri());
-    assertEquals("geography/england", Nation.ENGLAND.resourceFolder());
     assertTrue(Nation.current().usesNhsNumbers());
   }
 
@@ -84,8 +85,19 @@ public class NationTest {
   }
 
   @Test
-  public void missingNationFilesAreNotUsed() {
-    // no England file: the resource is not used
+  public void englandResourcesComeFromItsFolder() throws Exception {
+    assertEquals("geography/england", Nation.ENGLAND.resourceFolder());
+    for (Nation.Resource resource : Nation.Resource.values()) {
+      String path = resource.path();
+      if (path != null) {
+        assertTrue(resource + ": " + path, path.startsWith("geography/england/"));
+        assertNotNull(resource + " missing: " + path, Utilities.readResource(path));
+      }
+    }
+    assertEquals("geography/england/postcodes.csv", Nation.Resource.POSTCODES.path());
+    assertEquals("geography/england/payers/insurance_plans.csv",
+        Nation.Resource.PAYER_PLANS.path());
+    // no England file: the provider type is not used
     assertNull(Nation.Resource.NURSING.path());
     assertNull(Nation.Resource.VETERANS.path());
   }
