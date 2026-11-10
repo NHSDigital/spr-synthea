@@ -57,4 +57,13 @@ public class SimpleYML {
 
     return current.get(pathSegments[pathSegments.length - 1]);
   }
+
+  /**
+   * The keys at the top level of the YAML document.
+   *
+   * @return the top-level keys
+   */
+  public java.util.Set<String> topLevelKeys() {
+    return internalMap.keySet();
+  }
 }

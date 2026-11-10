@@ -157,16 +157,17 @@ public final class LifecycleModule extends Module {
     Map<String, Object> attributes = person.attributes;
 
     attributes.put(Person.ID, person.randUUID().toString());
-    String language = (String) attributes.get(Person.FIRST_LANGUAGE);
+    String nameOrigin = Names.nameOrigin(person);
+    attributes.put(Person.NAME_ORIGIN, nameOrigin);
     String gender = (String) attributes.get(Person.GENDER);
     if (attributes.get(Person.ENTITY) == null) {
       attributes.put(Person.BIRTHDATE, time);
-      String firstName = Names.fakeFirstName(gender, language, person);
-      String lastName = Names.fakeLastName(language, person);
+      String firstName = Names.fakeFirstName(gender, nameOrigin, person);
+      String lastName = Names.fakeLastName(nameOrigin, person);
       attributes.put(Person.FIRST_NAME, firstName);
       String middleName = null;
       if (person.rand() <= MIDDLE_NAME_PROBABILITY) {
-        middleName = Names.fakeFirstName(gender, language, person);
+        middleName = Names.fakeFirstName(gender, nameOrigin, person);
         attributes.put(Person.MIDDLE_NAME, middleName);
       }
       attributes.put(Person.LAST_NAME, lastName);
@@ -180,11 +181,11 @@ public final class LifecycleModule extends Module {
       attributes.put(Person.ADDRESS, Names.fakeAddress(hasStreetAddress2, person));
     }
 
-    String motherFirstName = Names.fakeFirstName("F", language, person);
-    String motherLastName = Names.fakeLastName(language, person);
+    String motherFirstName = Names.fakeFirstName("F", nameOrigin, person);
+    String motherLastName = Names.fakeLastName(nameOrigin, person);
     attributes.put(Person.NAME_MOTHER, motherFirstName + " " + motherLastName);
 
-    String fatherFirstName = Names.fakeFirstName("M", language, person);
+    String fatherFirstName = Names.fakeFirstName("M", nameOrigin, person);
     // this is anglocentric where the baby gets the father's last name
     attributes.put(Person.NAME_FATHER, fatherFirstName + " " + attributes.get(Person.LAST_NAME));
 
@@ -373,8 +374,8 @@ public final class LifecycleModule extends Module {
               if (person.attributes.containsKey(Person.MIDDLE_NAME)) {
                 middleName = (String) person.attributes.get(Person.MIDDLE_NAME);
               }
-              String language = (String) person.attributes.get(Person.FIRST_LANGUAGE);
-              String newLastName = Names.fakeLastName(language, person);
+              String origin = (String) person.attributes.get(Person.NAME_ORIGIN);
+              String newLastName = Names.fakeLastName(origin, person);
               person.attributes.put(Person.LAST_NAME, newLastName);
               if (middleName != null) {
                 person.attributes.put(Person.NAME,
@@ -1304,6 +1305,7 @@ public final class LifecycleModule extends Module {
     Attributes.inventory(attributes, m, Person.ETHNICITY, true, false, null);
     Attributes.inventory(attributes, m, Person.FIRST_NAME, true, false, null);
     Attributes.inventory(attributes, m, Person.FIRST_LANGUAGE, true, false, null);
+    Attributes.inventory(attributes, m, Person.NAME_ORIGIN, false, true, "english");
     Attributes.inventory(attributes, m, Person.GENDER, true, false, "M");
     Attributes.inventory(attributes, m, Person.IDENTIFIER_DRIVERS, true, false, null);
     Attributes.inventory(attributes, m, Person.IDENTIFIER_PASSPORT, true, false, null);

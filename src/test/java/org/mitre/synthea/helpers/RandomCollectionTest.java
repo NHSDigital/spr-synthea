@@ -120,4 +120,18 @@ public class RandomCollectionTest {
     Assert.assertTrue(3 == asian);
   }
 
+  @Test
+  public void nextDrawingOnlyIfNeededSkipsDrawForSingleItem() {
+    Fixed fixed = new Fixed();
+    RandomCollection<String> single = new RandomCollection<>();
+    single.add(1.0, "only");
+    Assert.assertEquals("only", single.nextDrawingOnlyIfNeeded(fixed));
+    Assert.assertEquals("no value consumed", 0.0, fixed.rand(), 0.0);
+
+    RandomCollection<String> two = new RandomCollection<>();
+    two.add(1.0, "a");
+    two.add(1.0, "b");
+    Assert.assertEquals("b", two.nextDrawingOnlyIfNeeded(fixed));
+    Assert.assertEquals("one value consumed", 0.999, fixed.rand(), 0.0);
+  }
 }

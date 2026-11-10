@@ -115,17 +115,20 @@ public class NationTest {
 
   @Test
   public void resolutionIsCachedUntilConfigChanges() {
-    Config.set(Nation.COUNTRY_CODE_KEY, "US");
     String names = Nation.Resource.NAMES.path();
     assertSame("cached between config changes", names, Nation.Resource.NAMES.path());
     long version = Config.version();
 
-    Config.set(Nation.Resource.NAMES.configKey, "custom.yml");
+    Config.set(Nation.COUNTRY_CODE_KEY, "US");
     assertTrue(Config.version() > version);
+    assertEquals(Nation.UPSTREAM, Nation.current());
+    assertEquals("names.yml", Nation.Resource.NAMES.path());
+
+    Config.set(Nation.Resource.NAMES.configKey, "custom.yml");
     assertEquals("custom.yml", Nation.Resource.NAMES.path());
     Config.remove(Nation.Resource.NAMES.configKey);
-    assertEquals("names.yml", Nation.Resource.NAMES.path());
     Config.set(Nation.COUNTRY_CODE_KEY, "GB-ENG");
     assertEquals(Nation.ENGLAND, Nation.current());
+    assertEquals("geography/england/names.yml", Nation.Resource.NAMES.path());
   }
 }
