@@ -1,0 +1,324 @@
+{
+  "dtap_ipv_hib": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "120",
+      "display": "DTaP-Hib-IPV"
+    },
+    "remark": "5-in-1 primary course at 8, 12 and 16 weeks; replaced by the 6-in-1 (DTaP/IPV/Hib/HepB) in autumn 2017.",
+    "at_months": [
+      2,
+      3,
+      4
+    ],
+    "first_available": 2004,
+    "last_available": 2017
+  },
+  "dtap_ipv_hib_hepb": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "146",
+      "display": "DTaP,IPV,Hib,HepB"
+    },
+    "remark": "6-in-1 primary course at 8, 12 and 16 weeks (NHS routine schedule from 2017).",
+    "at_months": [
+      2,
+      3,
+      4
+    ],
+    "first_available": 2017
+  },
+  "rotavirus": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "119",
+      "display": "rotavirus, monovalent"
+    },
+    "remark": "Rotarix, 2 doses at 8 and 12 weeks (introduced July 2013).",
+    "at_months": [
+      2,
+      3
+    ],
+    "first_available": 2013
+  },
+  "menb": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "163",
+      "display": "meningococcal B, OMV"
+    },
+    "remark": "Bexsero at 8 weeks, 16 weeks and 1 year (introduced September 2015).",
+    "at_months": [
+      2,
+      4,
+      12
+    ],
+    "first_available": 2015
+  },
+  "pcv7": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "100",
+      "display": "pneumococcal conjugate PCV 7"
+    },
+    "remark": "PCV7 introduced September 2006, replaced by PCV13 in April 2010.",
+    "at_months": [
+      2,
+      4,
+      13
+    ],
+    "first_available": 2006,
+    "last_available": 2010
+  },
+  "pcv13": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "133",
+      "display": "Pneumococcal conjugate PCV 13"
+    },
+    "remark": "PCV13 2+1 schedule until the change to a 1+1 schedule in January 2020.",
+    "at_months": [
+      2,
+      4,
+      12
+    ],
+    "first_available": 2010,
+    "last_available": 2020
+  },
+  "pcv13_1p1": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "133",
+      "display": "Pneumococcal conjugate PCV 13"
+    },
+    "remark": "PCV13 1+1 schedule at 12 weeks and 1 year (from January 2020).",
+    "at_months": [
+      3,
+      12
+    ],
+    "first_available": 2020
+  },
+  "menc_infant": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "103",
+      "display": "meningococcal C conjugate"
+    },
+    "remark": "MenC infant primary course introduced November 1999.",
+    "at_months": [
+      2,
+      3,
+      4
+    ],
+    "first_available": 1999,
+    "last_available": 2006
+  },
+  "hib_booster": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "17",
+      "display": "Hib, unspecified formulation"
+    },
+    "remark": "Hib component of the Hib/MenC (Menitorix) booster at 1 year.",
+    "at_months": [
+      12
+    ],
+    "first_available": 2006
+  },
+  "menc": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "103",
+      "display": "meningococcal C conjugate"
+    },
+    "remark": "MenC component of the Hib/MenC (Menitorix) booster at 1 year.",
+    "at_months": [
+      12
+    ],
+    "first_available": 2006
+  },
+  "mmr": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "03",
+      "display": "MMR"
+    },
+    "remark": "MMR at 1 year and 3 years 4 months (second dose added 1996).",
+    "at_months": [
+      12,
+      40
+    ],
+    "first_available": 1988
+  },
+  "dtap_ipv": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "130",
+      "display": "DTaP-IPV"
+    },
+    "remark": "4-in-1 pre-school booster at 3 years 4 months.",
+    "at_months": [
+      40
+    ],
+    "first_available": 2004
+  },
+  "hpv": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "137",
+      "display": "HPV, unspecified formulation"
+    },
+    "remark": "HPV in school year 8 (age 12-13); girls from 2008, boys from 2019; single dose from 2023.",
+    "at_months": [
+      144
+    ],
+    "first_available": 2008
+  },
+  "td_ipv": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "09",
+      "display": "Td (adult), 2 Lf tetanus toxoid, preservative free, adsorbed"
+    },
+    "remark": "3-in-1 teenage booster (Td/IPV, Revaxis) in school year 9 (age 14). CVX has no Td/IPV code.",
+    "at_months": [
+      168
+    ],
+    "first_available": 2006
+  },
+  "menacwy": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "108",
+      "display": "meningococcal ACWY, unspecified formulation"
+    },
+    "remark": "MenACWY in school year 9 (age 14), introduced 2015.",
+    "at_months": [
+      168
+    ],
+    "first_available": 2015
+  },
+  "flu_child": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "111",
+      "display": "Influenza, live, trivalent, intranasal, PF"
+    },
+    "remark": "Annual nasal spray flu vaccine for children aged 2 years to school year 11, phased in from 2013.",
+    "at_months": [
+      24,
+      36,
+      48,
+      60,
+      72,
+      84,
+      96,
+      108,
+      120,
+      132,
+      144,
+      156,
+      168,
+      180,
+      192
+    ],
+    "first_available": 2013
+  },
+  "flu": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "141",
+      "display": "Influenza, split virus, trivalent, preservative"
+    },
+    "remark": "Annual flu vaccine for adults aged 65 and over (national policy from 2000).",
+    "at_months": [
+      780,
+      792,
+      804,
+      816,
+      828,
+      840,
+      852,
+      864,
+      876,
+      888,
+      900,
+      912,
+      924,
+      936,
+      948,
+      960,
+      972,
+      984,
+      996,
+      1008,
+      1020,
+      1032,
+      1044,
+      1056,
+      1068,
+      1080,
+      1092,
+      1104,
+      1116,
+      1128,
+      1140,
+      1152,
+      1164,
+      1176,
+      1188,
+      1200
+    ],
+    "first_available": 2000
+  },
+  "ppv23": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "33",
+      "display": "pneumococcal polysaccharide PPV23"
+    },
+    "remark": "PPV23 at age 65 (from 2003).",
+    "at_months": [
+      780
+    ],
+    "first_available": 2003
+  },
+  "zoster_live": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "121",
+      "display": "zoster live"
+    },
+    "remark": "Zostavax at age 70 (September 2013 to September 2023).",
+    "at_months": [
+      840
+    ],
+    "first_available": 2013,
+    "last_available": 2023
+  },
+  "zoster_recombinant": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "187",
+      "display": "zoster recombinant"
+    },
+    "remark": "Shingrix, 2 doses at age 65 (from September 2023).",
+    "at_months": [
+      780,
+      782
+    ],
+    "first_available": 2023
+  },
+  "rsv": {
+    "code": {
+      "system": "http://hl7.org/fhir/sid/cvx",
+      "code": "305",
+      "display": "RSV, bivalent, protein subunit RSVpreF, diluent reconstituted, 0.5 mL, PF"
+    },
+    "remark": "RSV vaccine for adults turning 75 (from September 2024).",
+    "at_months": [
+      900
+    ],
+    "first_available": 2024
+  }
+}

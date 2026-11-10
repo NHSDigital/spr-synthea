@@ -169,6 +169,8 @@ public enum Nation {
     TIMEZONES("generate.geography.timezones.default_file", "geography/timezones.csv",
         "timezones.csv"),
     NAMES("generate.names.default_file", "names.yml", "names.yml"),
+    IMMUNIZATION_SCHEDULE("generate.immunization_schedule", "immunization_schedule.json",
+        "immunization_schedule.json"),
     /** Ethnic groups, national ethnic categories and main languages (UK nations only). */
     ETHNICITY("generate.demographics.ethnicity_file", null, "ethnicity.json"),
     HOSPITALS("generate.providers.hospitals.default_file", "providers/hospitals.csv",

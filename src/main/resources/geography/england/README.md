@@ -19,6 +19,7 @@ Setting the nation to England also turns on:
 | `timezones.csv` | Time zone for each region | `generate.geography.timezones.default_file` |
 | `names.yml` | Name lists by origin, the `name_origins` rules that choose them, and UK street types | `generate.names.default_file` |
 | `ethnicity.json` | Ethnic groups, NHS ethnic category weights and displays, and main language by group | `generate.demographics.ethnicity_file` |
+| `immunization_schedule.json` | NHS England routine immunisation schedule, including historical changes | `generate.immunization_schedule` |
 | `providers/` | NHS hospitals, GP practices and urgent care sites in the South West (see `providers/README.md`) | `generate.providers.<type>.default_file` |
 | `payers/` | NHS England as the single payer | `generate.payers.*` |
 

@@ -12,10 +12,12 @@ import java.util.stream.Collectors;
 
 import org.mitre.synthea.helpers.Attributes;
 import org.mitre.synthea.helpers.Attributes.Inventory;
+import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
 import org.mitre.synthea.world.concepts.HealthRecord;
 import org.mitre.synthea.world.concepts.HealthRecord.Code;
+import org.mitre.synthea.world.geography.Nation;
 
 /**
  * This is a complete, but fairly simplistic approach to synthesizing immunizations. It is encounter
@@ -33,12 +35,32 @@ public class Immunizations {
    */
   public static final String IMMUNIZATIONS = "immunizations";
 
-  @SuppressWarnings({ "unchecked", "rawtypes" })
-  private static final Map<String, Map> immunizationSchedule = loadImmunizationSchedule();
+  /** Config key naming the immunization schedule resource to use. */
+  public static final String SCHEDULE_CONFIG = "generate.immunization_schedule";
+  /** Default (US/CDC) immunization schedule resource. */
+  public static final String DEFAULT_SCHEDULE = "immunization_schedule.json";
 
+  private static String loadedScheduleFile;
   @SuppressWarnings("rawtypes")
-  private static Map loadImmunizationSchedule() {
-    String filename = "immunization_schedule.json";
+  private static Map<String, Map> loadedSchedule;
+
+  /**
+   * Get the immunization schedule configured by "generate.immunization_schedule".
+   * The schedule is reloaded if the configured file changes.
+   * @return Map of immunization name to schedule definition.
+   */
+  @SuppressWarnings("rawtypes")
+  public static synchronized Map<String, Map> getSchedule() {
+    String filename = Nation.Resource.IMMUNIZATION_SCHEDULE.path();
+    if (loadedSchedule == null || !filename.equals(loadedScheduleFile)) {
+      loadedSchedule = loadImmunizationSchedule(filename);
+      loadedScheduleFile = filename;
+    }
+    return loadedSchedule;
+  }
+
+  @SuppressWarnings({ "unchecked", "rawtypes" })
+  private static Map<String, Map> loadImmunizationSchedule(String filename) {
     try {
       String json = Utilities.readResource(filename);
       Gson g = new Gson();
@@ -46,7 +68,7 @@ public class Immunizations {
     } catch (Exception e) {
       System.err.println("ERROR: unable to load json: " + filename);
       e.printStackTrace();
-      throw new ExceptionInInitializerError(e);
+      throw new IllegalStateException("Unable to load immunization schedule " + filename, e);
     }
   }
 
@@ -66,6 +88,7 @@ public class Immunizations {
       person.attributes.put(IMMUNIZATIONS, immunizationsGiven);
     }
 
+    Map<String, Map> immunizationSchedule = getSchedule();
     for (String immunization : immunizationSchedule.keySet()) {
       int series = immunizationDue(immunization, person, time, immunizationsGiven);
       if (series > 0) {
@@ -107,9 +130,15 @@ public class Immunizations {
 
     // Don't administer if the immunization wasn't historically available at the date of the
     // encounter
-    Map schedule = immunizationSchedule.get(immunization);
-    Double firstAvailable = (Double) schedule.getOrDefault("first_available", 1900);
+    Map schedule = getSchedule().get(immunization);
+    Number firstAvailable = (Number) schedule.getOrDefault("first_available", 1900);
     if (time < Utilities.convertCalendarYearsToTime(firstAvailable.intValue())) {
+      return -1;
+    }
+    // Nor if it had been withdrawn from the schedule (e.g. replaced by a newer vaccine)
+    Number lastAvailable = (Number) schedule.get("last_available");
+    if (lastAvailable != null
+        && time >= Utilities.convertCalendarYearsToTime(lastAvailable.intValue())) {
       return -1;
     }
 
@@ -166,7 +195,7 @@ public class Immunizations {
    */
   @SuppressWarnings("rawtypes")
   public static Collection<Code> getAllCodes() {
-    List<Map> rawCodes = (List<Map>) immunizationSchedule.values()
+    List<Map> rawCodes = (List<Map>) getSchedule().values()
         .stream().map(m -> (Map)m.get("code")).collect(Collectors.toList());
 
     List<Code> convertedCodes = new ArrayList<Code>(rawCodes.size());
@@ -189,6 +218,7 @@ public class Immunizations {
    */
   @SuppressWarnings("rawtypes")
   public static int getMaximumDoses(String code) {
+    Map<String, Map> immunizationSchedule = getSchedule();
     for (String immunization : immunizationSchedule.keySet()) {
       Map icode = (Map) immunizationSchedule.get(immunization).get("code");
       if (icode.get("code").equals(code)) {
