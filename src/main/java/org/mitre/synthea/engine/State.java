@@ -1646,6 +1646,8 @@ public abstract class State implements Cloneable, Serializable {
     private transient List<JsonObject> goals; // TODO: make this a Component
     /** The reason for starting this CarePlan */
     private String reason;
+    /** Optional human-readable title of the CarePlan */
+    private String title;
 
     @Override
     public CarePlanStart clone() {
@@ -1660,6 +1662,7 @@ public abstract class State implements Cloneable, Serializable {
       entry = careplan;
       careplan.name = this.name;
       careplan.mergeCodeList(codes);
+      careplan.title = this.title;
 
       if (activities != null) {
         careplan.activities.addAll(activities);
@@ -1756,6 +1759,8 @@ public abstract class State implements Cloneable, Serializable {
     private Distribution distribution;
     /** The unit of time for the duration of the procedure */
     private String unit;
+    /** Codes of the care plans this procedure is based on */
+    private List<Code> careplans;
 
     @Override
     protected void initialize(Module module, String name, JsonObject definition) {
@@ -1822,6 +1827,9 @@ public abstract class State implements Cloneable, Serializable {
         }
         this.stop = procedure.start + Utilities.convertTime(procedureDurationUnit, durationVal);
         procedure.stop = this.stop;
+      }
+      if (careplans != null) {
+        procedure.codesBasedOn.addAll(careplans);
       }
       // increment number of procedures by respective hospital
       Provider provider;
