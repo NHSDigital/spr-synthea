@@ -36,6 +36,7 @@ import org.mitre.synthea.world.concepts.Names;
 import org.mitre.synthea.world.concepts.PediatricGrowthTrajectory;
 import org.mitre.synthea.world.concepts.VitalSign;
 import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
 
 /**
  * LifecycleModule is responsible for managing the lifecycle of a Person.
@@ -62,7 +63,7 @@ public final class LifecycleModule extends Module {
   /** Attribute key for a person's probability to follow doctor's orders and recommendations */
   public static final String ADHERENCE_PROBABILITY = "adherence probability";
 
-  private static final String COUNTRY_CODE = Config.get("generate.geography.country_code");
+  private static final String COUNTRY_CODE = Nation.isoCountryCode();
   private static final Double MIDDLE_NAME_PROBABILITY =
       Config.getAsDouble("generate.middle_names", 0.80);
 
@@ -192,6 +193,9 @@ public final class LifecycleModule extends Module {
     String ssn = "999-" + ((person.randInt(99 - 10 + 1) + 10)) + "-"
         + ((person.randInt(9999 - 1000 + 1) + 1000));
     attributes.put(Person.IDENTIFIER_SSN, ssn);
+
+    attributes.put(Person.COUNTRY, Nation.isoCountryCode());
+    attributes.put(Person.NATION, Nation.configuredCode());
 
     String city = (String) attributes.get(Person.CITY);
     Location location = (Location) attributes.get(Person.LOCATION);
@@ -1317,6 +1321,8 @@ public final class LifecycleModule extends Module {
     Attributes.inventory(attributes, m, Person.BIRTH_CITY, false, true, "Bedford");
     Attributes.inventory(attributes, m, Person.BIRTH_COUNTRY, false, true, COUNTRY_CODE);
     Attributes.inventory(attributes, m, Person.BIRTH_STATE, false, true, "Massachusetts");
+    Attributes.inventory(attributes, m, Person.COUNTRY, false, true, COUNTRY_CODE);
+    Attributes.inventory(attributes, m, Person.NATION, false, true, "GB-ENG");
     Attributes.inventory(attributes, m, Person.BIRTHDATE, false, true, null);
     Attributes.inventory(attributes, m, Person.BIRTHPLACE, false, true, "Boston");
     Attributes.inventory(attributes, m, Person.ETHNICITY, false, true, null);

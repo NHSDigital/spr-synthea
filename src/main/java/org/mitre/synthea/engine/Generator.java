@@ -51,6 +51,7 @@ import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
 import org.mitre.synthea.world.concepts.VitalSign;
 import org.mitre.synthea.world.geography.Demographics;
 import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
 
 /**
  * Generator creates a population by running the generic modules each timestep
@@ -105,8 +106,8 @@ public class Generator {
   private boolean onlyVeterans;
   private Module keepPatientsModule;
   private Long maxAttemptsToKeepPatient;
-  /** The state to default to */
-  public static String DEFAULT_STATE = "Massachusetts";
+  /** The state to default to; null to use the configured nation's default (see Nation). */
+  public static String DEFAULT_STATE = Config.get("generate.geography.default_state");
   private Exporter.ExporterRuntimeOptions exporterRuntimeOptions;
   /**
    * EntityManager is used to manage fixed patient demographics records.
@@ -268,8 +269,10 @@ public class Generator {
   }
 
   private void init() {
+    // Fails clearly if generate.geography.country_code names a nation not implemented yet
+    Nation.current();
     if (options.state == null) {
-      options.state = DEFAULT_STATE;
+      options.state = DEFAULT_STATE != null ? DEFAULT_STATE : Nation.defaultState();
     }
     int stateIndex = Location.getIndex(options.state);
     if (Config.getAsBoolean("exporter.cdw.export")) {

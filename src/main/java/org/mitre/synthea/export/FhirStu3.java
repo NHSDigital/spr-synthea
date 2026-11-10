@@ -128,6 +128,7 @@ import org.mitre.synthea.world.concepts.HealthRecord.Medication;
 import org.mitre.synthea.world.concepts.HealthRecord.Observation;
 import org.mitre.synthea.world.concepts.HealthRecord.Procedure;
 import org.mitre.synthea.world.concepts.HealthRecord.Report;
+import org.mitre.synthea.world.geography.Nation;
 
 public class FhirStu3 {
   // HAPI FHIR warns that the context creation is expensive, and should be performed
@@ -151,8 +152,8 @@ public class FhirStu3 {
   protected static boolean TRANSACTION_BUNDLE =
       Config.getAsBoolean("exporter.fhir.transaction_bundle");
 
-  private static final String COUNTRY_CODE = Config.get("generate.geography.country_code");
-  private static final String PASSPORT_URI = Config.get("generate.geography.passport_uri", "http://hl7.org/fhir/sid/passport-USA");
+  private static final String COUNTRY_CODE = Nation.isoCountryCode();
+  private static final String PASSPORT_URI = Nation.passportUri();
 
   @SuppressWarnings("rawtypes")
   private static Map loadRaceEthnicityCodes() {

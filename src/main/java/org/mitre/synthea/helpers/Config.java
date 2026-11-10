@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Utility class for managing configuration properties in Synthea.
@@ -14,6 +15,8 @@ import java.util.Set;
  */
 public abstract class Config {
   private static Properties properties = new Properties();
+  /** Incremented on every change, so callers can cache values derived from the config. */
+  private static final AtomicLong version = new AtomicLong();
 
   static {
     try {
@@ -33,6 +36,7 @@ public abstract class Config {
    */
   public static void load(File propsFile) throws FileNotFoundException, IOException {
     properties.load(new FileReader(propsFile));
+    version.incrementAndGet();
   }
 
   /**
@@ -43,6 +47,7 @@ public abstract class Config {
    */
   public static void load(InputStream stream) throws IOException {
     properties.load(stream);
+    version.incrementAndGet();
   }
 
   /**
@@ -178,6 +183,7 @@ public abstract class Config {
    */
   public static void set(String key, String value) {
     properties.setProperty(key, value);
+    version.incrementAndGet();
   }
 
   /**
@@ -202,5 +208,16 @@ public abstract class Config {
    */
   public static void remove(String key) {
     properties.remove(key);
+    version.incrementAndGet();
+  }
+
+  /**
+   * A number that changes whenever the configuration changes (set, remove or load), so values
+   * derived from the configuration can be cached and recomputed only after a change.
+   *
+   * @return the current configuration version
+   */
+  public static long version() {
+    return version.get();
   }
 }

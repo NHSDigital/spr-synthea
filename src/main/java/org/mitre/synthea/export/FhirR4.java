@@ -164,6 +164,7 @@ import org.mitre.synthea.world.concepts.HealthRecord.Observation;
 import org.mitre.synthea.world.concepts.HealthRecord.Procedure;
 import org.mitre.synthea.world.concepts.HealthRecord.Report;
 import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
 
 public class FhirR4 {
   // HAPI FHIR warns that the context creation is expensive, and should be performed
@@ -245,8 +246,13 @@ public class FhirR4 {
     return useUSCore7;
   }
 
-  private static final String COUNTRY_CODE = Config.get("generate.geography.country_code");
-  private static final String PASSPORT_URI = Config.get("generate.geography.passport_uri", "http://hl7.org/fhir/sid/passport-USA");
+  private static String countryCode() {
+    return Nation.isoCountryCode();
+  }
+
+  private static String passportUri() {
+    return Nation.passportUri();
+  }
 
   private static final HashSet<Class<? extends Resource>> includedResources = new HashSet<>();
   private static final HashSet<Class<? extends Resource>> excludedResources = new HashSet<>();
@@ -589,7 +595,7 @@ public class FhirR4 {
       Code passportCode = new Code("http://terminology.hl7.org/CodeSystem/v2-0203", "PPN", "Passport Number");
       patientResource.addIdentifier()
           .setType(mapCodeToCodeableConcept(passportCode, "http://terminology.hl7.org/CodeSystem/v2-0203"))
-          .setSystem(PASSPORT_URI)
+          .setSystem(passportUri())
           .setValue((String) person.attributes.get(Person.IDENTIFIER_PASSPORT));
     }
 
@@ -771,8 +777,8 @@ public class FhirR4 {
         .setCity((String) person.attributes.get(Person.CITY))
         .setPostalCode((String) person.attributes.get(Person.ZIP))
         .setState(state);
-    if (COUNTRY_CODE != null) {
-      addrResource.setCountry(COUNTRY_CODE);
+    if (countryCode() != null) {
+      addrResource.setCountry(countryCode());
     }
 
     Address birthplace = new Address();
@@ -3166,8 +3172,8 @@ public class FhirR4 {
         .setCity(provider.city)
         .setPostalCode(provider.zip)
         .setState(provider.state);
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
+    if (countryCode() != null) {
+      address.setCountry(countryCode());
     }
     organizationResource.addAddress(address);
 
@@ -3233,8 +3239,8 @@ public class FhirR4 {
         .setCity(provider.city)
         .setPostalCode(provider.zip)
         .setState(provider.state);
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
+    if (countryCode() != null) {
+      address.setCountry(countryCode());
     }
     location.setAddress(address);
     LocationPositionComponent position = new LocationPositionComponent();
@@ -3293,8 +3299,8 @@ public class FhirR4 {
         .setCity((String) clinician.attributes.get(Clinician.CITY))
         .setPostalCode((String) clinician.attributes.get(Clinician.ZIP))
         .setState((String) clinician.attributes.get(Clinician.STATE));
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
+    if (countryCode() != null) {
+      address.setCountry(countryCode());
     }
     practitionerResource.addAddress(address);
 

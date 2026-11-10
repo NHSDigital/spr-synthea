@@ -6,6 +6,7 @@ import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.SimpleYML;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.geography.Nation;
 
 /**
  * Provides utilities for generating and managing names.
@@ -15,9 +16,9 @@ public class Names {
   private static SimpleYML names = loadNames();
 
   private static SimpleYML loadNames() {
-    String filename = "names.yml";
+    String filename = Nation.Resource.NAMES.path();
     try {
-      String namesData = Utilities.readResource(filename);
+      String namesData = Utilities.readResource(filename, false, true);
       return new SimpleYML(namesData);
     } catch (Exception e) {
       System.err.println("ERROR: unable to load yml: " + filename);

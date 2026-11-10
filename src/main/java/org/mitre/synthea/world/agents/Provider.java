@@ -34,6 +34,7 @@ import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
 import org.mitre.synthea.world.concepts.Names;
 import org.mitre.synthea.world.geography.Demographics;
 import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
 import org.mitre.synthea.world.geography.quadtree.QuadTree;
 import org.mitre.synthea.world.geography.quadtree.QuadTreeElement;
 
@@ -505,30 +506,30 @@ public class Provider implements QuadTreeElement, Serializable {
         servicesProvided.add(EncounterType.OUTPATIENT);
         servicesProvided.add(EncounterType.INPATIENT);
 
-        String hospitalFile = Config.get("generate.providers.hospitals.default_file");
+        String hospitalFile = Nation.Resource.HOSPITALS.path();
         loadProviders(location, hospitalFile, ProviderType.HOSPITAL, servicesProvided,
             random, false);
 
-        String ihsHospitalFile = Config.get("generate.providers.ihs.hospitals.default_file");
+        String ihsHospitalFile = Nation.Resource.IHS_HOSPITALS.path();
         loadProviders(location, ihsHospitalFile, ProviderType.IHS, servicesProvided,
             random, true);
 
         servicesProvided.add(EncounterType.WELLNESS);
-        String vaFile = Config.get("generate.providers.veterans.default_file");
+        String vaFile = Nation.Resource.VETERANS.path();
         loadProviders(location, vaFile, ProviderType.VETERAN, servicesProvided, random,
-                false);
+                true);
 
         servicesProvided.clear();
         servicesProvided.add(EncounterType.WELLNESS);
-        String primaryCareFile = Config.get("generate.providers.primarycare.default_file");
+        String primaryCareFile = Nation.Resource.PRIMARY_CARE.path();
         loadProviders(location, primaryCareFile, ProviderType.PRIMARY, servicesProvided,
             random, false);
-        String ihsPCFile = Config.get("generate.providers.ihs.primarycare.default_file");
+        String ihsPCFile = Nation.Resource.IHS_PRIMARY_CARE.path();
         loadProviders(location, ihsPCFile, ProviderType.IHS, servicesProvided, random, true);
 
         servicesProvided.clear();
         servicesProvided.add(EncounterType.URGENTCARE);
-        String urgentcareFile = Config.get("generate.providers.urgentcare.default_file");
+        String urgentcareFile = Nation.Resource.URGENT_CARE.path();
         loadProviders(location, urgentcareFile, ProviderType.URGENT, servicesProvided,
             random, false);
 
@@ -545,19 +546,19 @@ public class Provider implements QuadTreeElement, Serializable {
         Set<EncounterType> servicesProvided = new HashSet<EncounterType>();
         servicesProvided.clear();
         servicesProvided.add(EncounterType.HOME);
-        String homeHealthFile = Config.get("generate.providers.homehealth.default_file");
+        String homeHealthFile = Nation.Resource.HOME_HEALTH.path();
         loadProviders(location, homeHealthFile, ProviderType.HOME_HEALTH, servicesProvided,
             random, true);
 
         servicesProvided.clear();
         servicesProvided.add(EncounterType.HOSPICE);
-        String hospiceFile = Config.get("generate.providers.hospice.default_file");
+        String hospiceFile = Nation.Resource.HOSPICE.path();
         loadProviders(location, hospiceFile, ProviderType.HOSPICE, servicesProvided,
             random, true);
 
         servicesProvided.clear();
         servicesProvided.add(EncounterType.SNF);
-        String nursingFile = Config.get("generate.providers.nursing.default_file");
+        String nursingFile = Nation.Resource.NURSING.path();
         loadProviders(location, nursingFile, ProviderType.NURSING, servicesProvided,
             random, true);
       } catch (IOException e) {
