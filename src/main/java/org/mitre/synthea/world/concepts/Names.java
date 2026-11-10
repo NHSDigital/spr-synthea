@@ -71,12 +71,11 @@ public class Names {
         if (languages != null) {
           byLanguage.putAll(languages);
         }
-        Map<Object, Map<String, Number>> categories =
-            (Map<Object, Map<String, Number>>) section.get("by_ethnic_category");
+        Map<String, Map<String, Number>> categories =
+            (Map<String, Map<String, Number>>) section.get("by_ethnic_category");
         if (categories != null) {
-          for (Map.Entry<Object, Map<String, Number>> category : categories.entrySet()) {
-            byEthnicCategory.put(String.valueOf(category.getKey()),
-                weightedOrigins(category.getValue()));
+          for (Map.Entry<String, Map<String, Number>> category : categories.entrySet()) {
+            byEthnicCategory.put(category.getKey(), weightedOrigins(category.getValue()));
           }
         }
         defaultWeights = (Map<String, Number>) section.get("default");
@@ -106,12 +105,10 @@ public class Names {
 
     private static boolean hasLists(SimpleYML names, String origin) {
       Object lists = names.get(origin);
-      if (!(lists instanceof Map)) {
-        return false;
-      }
-      Map<?, ?> map = (Map<?, ?>) lists;
-      return map.get("M") instanceof List && map.get("F") instanceof List
-          && map.get("family") instanceof List;
+      return (lists instanceof Map<?, ?> map)
+        && map.get("M") instanceof List
+        && map.get("F") instanceof List
+        && map.get("family") instanceof List;
     }
 
     String pick(String language, String ethnicCategory, Person person) {
