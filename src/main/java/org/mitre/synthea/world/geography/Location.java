@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.mitre.synthea.export.JSONSkip;
@@ -26,10 +27,12 @@ import org.mitre.synthea.world.concepts.Employment;
  */
 public class Location implements Serializable {
   private static final long serialVersionUID = 1L;
-  private static LinkedHashMap<String, String> stateAbbreviations = loadAbbreviations();
-  private static Map<String, String> timezones = loadTimezones();
+  /** State abbreviations, cached per zip/postcode file so the geography can be reconfigured. */
+  private static final Map<String, LinkedHashMap<String, String>> STATE_ABBREVIATIONS =
+      new ConcurrentHashMap<>();
+  /** Timezones, cached per timezone file so the geography can be reconfigured. */
+  private static final Map<String, Map<String, String>> TIMEZONES = new ConcurrentHashMap<>();
   private static Map<String, List<String>> foreignPlacesOfBirth = loadCitiesByLanguage();
-  private static final String COUNTRY_CODE = Config.get("generate.geography.country_code");
   private static CMSStateCodeMapper cmsStateCodeMapper = new CMSStateCodeMapper();
 
   /** Total population of the location. */
@@ -320,7 +323,7 @@ public class Location implements Serializable {
     String[] birthPlace = new String[4];
     birthPlace[0] = randomCityName(random);
     birthPlace[1] = this.state;
-    birthPlace[2] = COUNTRY_CODE;
+    birthPlace[2] = Config.get("generate.geography.country_code");
     birthPlace[3] = birthPlace[0] + ", " + birthPlace[1] + ", " + birthPlace[2];
     return birthPlace;
   }
@@ -442,11 +445,14 @@ public class Location implements Serializable {
     }
   }
 
-  private static LinkedHashMap<String, String> loadAbbreviations() {
+  private static LinkedHashMap<String, String> stateAbbreviations() {
+    String filename = Config.get("generate.geography.zipcodes.default_file", "");
+    return STATE_ABBREVIATIONS.computeIfAbsent(filename, Location::loadAbbreviations);
+  }
+
+  private static LinkedHashMap<String, String> loadAbbreviations(String filename) {
     LinkedHashMap<String, String> abbreviations = new LinkedHashMap<String, String>();
-    String filename = null;
     try {
-      filename = Config.get("generate.geography.zipcodes.default_file");
       String csv = Utilities.readResource(filename, true, true);
       List<? extends Map<String,String>> ziplist = SimpleCSV.parse(csv);
 
@@ -468,7 +474,7 @@ public class Location implements Serializable {
    * @return state abbreviation. e.g. "MA"
    */
   public static String getAbbreviation(String state) {
-    return stateAbbreviations.get(state);
+    return stateAbbreviations().get(state);
   }
 
   /**
@@ -480,7 +486,7 @@ public class Location implements Serializable {
    */
   public static int getIndex(String state) {
     int index = 0;
-    for (String stateName : stateAbbreviations.keySet()) {
+    for (String stateName : stateAbbreviations().keySet()) {
       if (stateName.equals(state)) {
         return index;
       }
@@ -495,19 +501,18 @@ public class Location implements Serializable {
    * @return state name. e.g. "Massachusetts"
    */
   public static String getStateName(String abbreviation) {
-    for (String name : stateAbbreviations.keySet()) {
-      if (stateAbbreviations.get(name).equalsIgnoreCase(abbreviation)) {
+    LinkedHashMap<String, String> abbreviations = stateAbbreviations();
+    for (String name : abbreviations.keySet()) {
+      if (abbreviations.get(name).equalsIgnoreCase(abbreviation)) {
         return name;
       }
     }
     return null;
   }
 
-  private static Map<String, String> loadTimezones() {
+  private static Map<String, String> loadTimezones(String filename) {
     HashMap<String, String> timezones = new HashMap<String, String>();
-    String filename = null;
     try {
-      filename = Config.get("generate.geography.timezones.default_file");
       String csv = Utilities.readResource(filename, true, true);
       List<? extends Map<String,String>> tzlist = SimpleCSV.parse(csv);
 
@@ -561,7 +566,8 @@ public class Location implements Serializable {
    * @return The full name of the timezone (e.g. "Eastern Standard Time")
    */
   public static String getTimezoneByState(String state) {
-    return timezones.get(state);
+    String filename = Config.get("generate.geography.timezones.default_file", "");
+    return TIMEZONES.computeIfAbsent(filename, Location::loadTimezones).get(state);
   }
 
   /**

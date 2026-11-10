@@ -465,6 +465,13 @@ public class Demographics implements Comparable<Demographics>, Serializable {
   private static final List<String> CSV_RACES = Arrays.asList(
       "WHITE", "BLACK", "ASIAN", "NATIVE", "OTHER");
 
+  /**
+   * Race columns used by UK (England) demographics files, which follow the ONS census
+   * high-level ethnic groups instead of the US Census race categories.
+   */
+  private static final List<String> CSV_UK_RACES = Arrays.asList(
+      "WHITE", "MIXED", "BLACK", "ASIAN", "OTHER");
+
   private static final List<String> CSV_INCOMES = Arrays.asList(
       "00..10", "10..15", "15..25", "25..35", "35..50",
       "50..75", "75..100", "100..150", "150..200", "200..999");
@@ -507,14 +514,21 @@ public class Demographics implements Comparable<Demographics>, Serializable {
     d.gender.put("female", Double.parseDouble(line.get("TOT_FEMALE")));
     nonZeroDefaults(d.gender);
 
+    // UK files have a MIXED group and no HISPANIC (ethnicity) or NATIVE columns
+    boolean ukFormat = line.containsKey("MIXED") && !line.containsKey(CSV_ETHNICITY);
     double percentageTotal = 0;
     d.race = new HashMap<String, Double>();
-    for (String race : CSV_RACES) {
+    for (String race : ukFormat ? CSV_UK_RACES : CSV_RACES) {
       double percentage = Double.parseDouble(line.get(race));
       d.race.put(race.toLowerCase(), percentage);
       percentageTotal += percentage;
     }
-    if (percentageTotal < 1.0) {
+    if (ukFormat) {
+      // Any unaccounted-for remainder is treated as "other"
+      if (percentageTotal < 1.0) {
+        d.race.put("other", d.race.get("other") + (1.0 - percentageTotal));
+      }
+    } else if (percentageTotal < 1.0) {
       // Account for Hawaiian and Pacific Islanders
       // and mixed race responses, and responses
       // that chose not to answer the race question.
@@ -553,7 +567,8 @@ public class Demographics implements Comparable<Demographics>, Serializable {
     }
     nonZeroDefaults(d.education);
 
-    d.ethnicity = Double.parseDouble(line.get(CSV_ETHNICITY));
+    // the US Census Hispanic ethnicity has no equivalent in UK files
+    d.ethnicity = ukFormat ? 0.0 : Double.parseDouble(line.get(CSV_ETHNICITY));
 
     return d;
   }
