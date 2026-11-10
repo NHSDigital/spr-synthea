@@ -1,14 +1,13 @@
 package org.mitre.synthea.world.concepts;
 
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.RandomCollection;
 import org.mitre.synthea.helpers.SimpleYML;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
@@ -49,13 +48,16 @@ public class Names {
    */
   private static class NameOrigins {
     private final Map<String, String> byLanguage = new HashMap<>();
-    private final Map<String, Map<String, Double>> byEthnicCategory = new HashMap<>();
-    private final Map<String, Double> defaults = new LinkedHashMap<>();
+    private final Map<String, RandomCollection<String>> byEthnicCategory = new HashMap<>();
+    private final RandomCollection<String> defaults;
     private final String fallback;
+    /** Every origin named in the rules, so each can be checked for name lists. */
+    private final Set<String> referenced = new LinkedHashSet<>();
 
     @SuppressWarnings("unchecked")
     NameOrigins(SimpleYML names) {
       Map<String, Object> section = (Map<String, Object>) names.get("name_origins");
+      Map<String, Number> defaultWeights;
       if (section == null) {
         // Files without a name_origins section: a language selects its own list, if present
         for (String key : names.topLevelKeys()) {
@@ -63,29 +65,29 @@ public class Names {
             byLanguage.put(key, key);
           }
         }
-        defaults.put("english", 1.0);
+        defaultWeights = Map.of("english", 1);
       } else {
         Map<String, String> languages = (Map<String, String>) section.get("by_language");
         if (languages != null) {
-          languages.forEach((language, origin) ->
-              byLanguage.put(language.toLowerCase(Locale.ROOT), origin));
+          byLanguage.putAll(languages);
         }
-        Map<String, Map<String, Number>> categories =
-            (Map<String, Map<String, Number>>) section.get("by_ethnic_category");
+        Map<Object, Map<String, Number>> categories =
+            (Map<Object, Map<String, Number>>) section.get("by_ethnic_category");
         if (categories != null) {
-          categories.forEach((category, weights) ->
-              byEthnicCategory.put(String.valueOf(category), toDoubles(weights)));
+          for (Map.Entry<Object, Map<String, Number>> category : categories.entrySet()) {
+            byEthnicCategory.put(String.valueOf(category.getKey()),
+                weightedOrigins(category.getValue()));
+          }
         }
-        defaults.putAll(toDoubles((Map<String, Number>) section.get("default")));
+        defaultWeights = (Map<String, Number>) section.get("default");
       }
-      if (defaults.isEmpty()) {
+      if (defaultWeights == null || defaultWeights.isEmpty()) {
         throw new IllegalStateException("name_origins.default must list at least one origin");
       }
-      fallback = defaults.keySet().iterator().next();
-      Set<String> used = new LinkedHashSet<>(byLanguage.values());
-      byEthnicCategory.values().forEach(weights -> used.addAll(weights.keySet()));
-      used.addAll(defaults.keySet());
-      for (String origin : used) {
+      fallback = defaultWeights.keySet().iterator().next();
+      defaults = weightedOrigins(defaultWeights);
+      referenced.addAll(byLanguage.values());
+      for (String origin : referenced) {
         if (!hasLists(names, origin)) {
           throw new IllegalStateException("Names file " + Nation.Resource.NAMES.path()
               + " refers to name origin '" + origin + "' without M, F and family lists");
@@ -93,12 +95,13 @@ public class Names {
       }
     }
 
-    private static Map<String, Double> toDoubles(Map<String, Number> weights) {
-      Map<String, Double> doubles = new LinkedHashMap<>();
-      if (weights != null) {
-        weights.forEach((origin, weight) -> doubles.put(origin, weight.doubleValue()));
+    private RandomCollection<String> weightedOrigins(Map<String, Number> weights) {
+      RandomCollection<String> origins = new RandomCollection<>();
+      for (Map.Entry<String, Number> origin : weights.entrySet()) {
+        origins.add(origin.getValue().doubleValue(), origin.getKey());
+        referenced.add(origin.getKey());
       }
-      return doubles;
+      return origins;
     }
 
     private static boolean hasLists(SimpleYML names, String origin) {
@@ -112,31 +115,14 @@ public class Names {
     }
 
     String pick(String language, String ethnicCategory, Person person) {
-      String origin = language == null ? null : byLanguage.get(language.toLowerCase(Locale.ROOT));
+      String origin = byLanguage.get(language);
       if (origin != null) {
         return origin;
       }
-      Map<String, Double> weights = ethnicCategory == null ? null
-          : byEthnicCategory.get(ethnicCategory);
-      return pickWeighted(weights == null ? defaults : weights, person);
-    }
-
-    private static String pickWeighted(Map<String, Double> weights, Person person) {
-      if (weights.size() == 1) {
-        // no random draw, so a single origin does not change the person's random stream
-        return weights.keySet().iterator().next();
-      }
-      double total = weights.values().stream().mapToDouble(Double::doubleValue).sum();
-      double r = person.rand() * total;
-      String chosen = null;
-      for (Map.Entry<String, Double> e : weights.entrySet()) {
-        chosen = e.getKey();
-        r -= e.getValue();
-        if (r < 0) {
-          break;
-        }
-      }
-      return chosen;
+      RandomCollection<String> weighted =
+          byEthnicCategory.getOrDefault(ethnicCategory, defaults);
+      // a single origin draws no random number, so the US random stream is unchanged
+      return weighted.nextDrawingOnlyIfNeeded(person);
     }
   }
 
@@ -165,10 +151,7 @@ public class Names {
 
   @SuppressWarnings("unchecked")
   private static List<String> namesFor(String origin, String list) {
-    String key = origin == null ? null : origin.toLowerCase(Locale.ROOT);
-    if (key == null || !NameOrigins.hasLists(names, key)) {
-      key = origins.fallback;
-    }
+    String key = NameOrigins.hasLists(names, origin) ? origin : origins.fallback;
     return (List<String>) ((Map<String, Object>) names.get(key)).get(list);
   }
 
