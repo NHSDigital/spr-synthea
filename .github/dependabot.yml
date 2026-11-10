@@ -1,0 +1,12 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # Keep deployment changes outside this CI update policy.
+    exclude-paths:
+      - .github/workflows/deploy.yml
+    groups:
+      ci-actions:
+        patterns: ['*']

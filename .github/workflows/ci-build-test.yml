@@ -8,10 +8,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint (Java 25)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up JDK
@@ -24,10 +29,19 @@ jobs:
       - name: Check style
         # Existing violations are warnings; keep them advisory for now.
         run: ./gradlew --no-daemon --build-cache --stacktrace checkstyleMain checkstyleTest
+      - name: Upload lint reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lint-reports-java-25
+          path: build/reports/checkstyle/
+          if-no-files-found: warn
+          retention-days: 7
 
   build_test:
     name: Build and test (Java ${{ matrix.java }})
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -53,3 +67,14 @@ jobs:
           files: build/reports/jacoco/test/jacocoTestReport.xml
           disable_search: true
           token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-java-${{ matrix.java }}
+          path: |
+            build/test-results/test/
+            build/reports/tests/test/
+            build/reports/jacoco/test/
+          if-no-files-found: warn
+          retention-days: 7
