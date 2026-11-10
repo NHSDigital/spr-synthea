@@ -928,6 +928,21 @@ public class StateTest {
   }
 
   @Test
+  public void encounter_uses_state_specialty_over_module_specialty() throws Exception {
+    Module module = TestHelper.getFixture("encounter_specialty.json");
+    Provider provider = Mockito.mock(Provider.class, withSettings().serializable());
+    person.setProvider(EncounterType.AMBULATORY, provider);
+
+    assertTrue(module.getState("Module_Specialty_Encounter").process(person, time));
+    Mockito.verify(provider).chooseClinicianList(ClinicianSpecialty.CERTIFIED_NURSE_MIDWIFE,
+        person);
+    assertTrue(module.getState("End_Module_Specialty_Encounter").process(person, time));
+
+    assertTrue(module.getState("State_Specialty_Encounter").process(person, time));
+    Mockito.verify(provider).chooseClinicianList(ClinicianSpecialty.GENERAL_PRACTICE, person);
+  }
+
+  @Test
   public void wellness_encounter() throws Exception {
     Module module = TestHelper.getFixture("encounter.json");
     State encounter = module.getState("Annual_Physical");

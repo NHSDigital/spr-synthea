@@ -938,6 +938,8 @@ public abstract class State implements Cloneable, Serializable {
     private String reason;
     /** Always, sometimes, or never possible for a telemedicine encounter */
     private String telemedicinePossibility;
+    /** Optional clinician specialty for this encounter, overriding the module specialty. */
+    private String specialty;
 
     @Override
     public Encounter clone() {
@@ -1016,12 +1018,14 @@ public abstract class State implements Cloneable, Serializable {
         } else {
           type = EncounterType.fromString(encounterClass);
         }
-        String specialty = ClinicianSpecialty.GENERAL_PRACTICE;
-        if (this.module.specialty != null) {
-          specialty = this.module.specialty;
+        String clinicianSpecialty = ClinicianSpecialty.GENERAL_PRACTICE;
+        if (this.specialty != null) {
+          clinicianSpecialty = this.specialty;
+        } else if (this.module.specialty != null) {
+          clinicianSpecialty = this.module.specialty;
         }
         HealthRecord.Encounter encounter = EncounterModule.createEncounter(person, time, type,
-            specialty, null, module.name);
+            clinicianSpecialty, null, module.name);
         entry = encounter;
         if (codes != null) {
           encounter.mergeCodeList(codes);
