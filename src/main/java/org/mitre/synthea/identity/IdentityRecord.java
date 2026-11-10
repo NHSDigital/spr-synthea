@@ -73,4 +73,10 @@ public interface IdentityRecord {
    * @return the Social Security Number.
    */
   public String getSocialSecurityNumber();
+
+  /**
+   * Get the individual's NHS number.
+   * @return the NHS number, or null if not known.
+   */
+  public String getNhsNumber();
 }

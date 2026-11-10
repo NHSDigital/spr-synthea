@@ -877,7 +877,8 @@ public class Generator {
     // this is synchronized to ensure all lines for a single person are always printed
     // consecutively
     String deceased = isAlive ? "" : "DECEASED";
-    System.out.format("%d -- %s (%d y/o %s) %s, %s %s (%d)\n", index + 1,
+    System.out.format("%d -- %s %s (%d y/o %s) %s, %s %s (%d)\n", index + 1,
+        person.attributes.get(Person.IDENTIFIER_NHS_NUMBER),
         person.attributes.get(Person.NAME), person.ageInYears(time),
         person.attributes.get(Person.GENDER),
         person.attributes.get(Person.CITY), person.attributes.get(Person.STATE),

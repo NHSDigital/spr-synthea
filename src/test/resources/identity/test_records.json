@@ -20,6 +20,7 @@
           "city": "Roxboro",
           "state": "NC",
           "zipCode": "27574",
+          "nhsNumber": "9434765919",
           "variants": [
             {
               "variantId": "91011",
@@ -47,6 +48,7 @@
               ],
               "city": "ROXBORO",
               "state": "NC",
+              "nhsNumber": "4010232137",
               "zipCode": "27574"
             }
           ]

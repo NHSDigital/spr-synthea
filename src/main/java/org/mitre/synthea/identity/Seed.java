@@ -48,6 +48,8 @@ public class Seed implements IdentityRecord {
   private String zipCode;
   /** The social security number of the entity. */
   private String socialSecurityNumber;
+  /** The NHS number of the entity. */
+  private String nhsNumber;
   /** The associated entity for this seed. */
   private transient Entity entity;
   /** The list of variants associated with this seed. */
@@ -241,6 +243,19 @@ public class Seed implements IdentityRecord {
     this.socialSecurityNumber = socialSecurityNumber;
   }
 
+  @Override
+  public String getNhsNumber() {
+    return nhsNumber;
+  }
+
+  /**
+   * Sets the NHS number for the entity.
+   * @param nhsNumber the NHS number to set
+   */
+  public void setNhsNumber(String nhsNumber) {
+    this.nhsNumber = nhsNumber;
+  }
+
   /**
    * Sets the entity associated with this seed.
    * @param entity the entity to associate with this seed
@@ -274,6 +289,9 @@ public class Seed implements IdentityRecord {
     attributes.put(Person.ZIP, this.zipCode);
     if (this.getSocialSecurityNumber() != null) {
       attributes.put(Person.IDENTIFIER_SSN, this.getSocialSecurityNumber());
+    }
+    if (this.getNhsNumber() != null) {
+      attributes.put(Person.IDENTIFIER_NHS_NUMBER, this.getNhsNumber());
     }
     return Utilities.cleanMap(attributes);
   }

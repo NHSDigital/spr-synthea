@@ -8,6 +8,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mitre.synthea.helpers.NhsNumberGenerator;
 import org.mitre.synthea.helpers.PhysiologyValueGenerator;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
@@ -24,6 +25,45 @@ public class LifecycleModuleTest {
   @AfterClass
   public static void after() {
     LifecycleModule.ENABLE_DEATH_BY_NATURAL_CAUSES = deathByNaturalCauses;
+  }
+
+  private static Person newbornWithDemographics(long seed, String gender) {
+    Person person = new Person(seed);
+    person.attributes.put(Person.GENDER, gender);
+    person.attributes.put(Person.FIRST_LANGUAGE, "english");
+    person.attributes.put(Person.RACE, "white");
+    person.attributes.put(Person.ETHNICITY, "nonhispanic");
+    return person;
+  }
+
+  @Test
+  public void testBirthAssignsValidNhsNumber() {
+    Person person = newbornWithDemographics(12345L, "F");
+    LifecycleModule.birth(person, 0L);
+    String nhsNumber = (String) person.attributes.get(Person.IDENTIFIER_NHS_NUMBER);
+    Assert.assertTrue("Invalid NHS number " + nhsNumber, NhsNumberGenerator.isValid(nhsNumber));
+    Assert.assertTrue(nhsNumber.startsWith("9"));
+    // the US-style SSN is still populated for exporters that need it
+    Assert.assertNotNull(person.attributes.get(Person.IDENTIFIER_SSN));
+  }
+
+  @Test
+  public void testBirthKeepsSuppliedNhsNumber() {
+    Person person = newbornWithDemographics(12345L, "M");
+    person.attributes.put(Person.IDENTIFIER_NHS_NUMBER, "9434765919");
+    LifecycleModule.birth(person, 0L);
+    assertEquals("9434765919", person.attributes.get(Person.IDENTIFIER_NHS_NUMBER));
+  }
+
+  @Test
+  public void testNhsNumberDoesNotPerturbRandomStream() {
+    Person a = newbornWithDemographics(777L, "F");
+    a.attributes.put(Person.IDENTIFIER_NHS_NUMBER, "9434765919");
+    LifecycleModule.birth(a, 0L);
+    Person b = newbornWithDemographics(777L, "F");
+    LifecycleModule.birth(b, 0L);
+    assertEquals(a.getCount(), b.getCount());
+    assertEquals(a.attributes.get(Person.NAME), b.attributes.get(Person.NAME));
   }
 
   @Test
