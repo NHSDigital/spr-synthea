@@ -1,59 +1,80 @@
-on: [push, pull_request]
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  check_java_latest:
+  lint:
+    name: Lint (Java 25)
     runs-on: ubuntu-latest
-    name: Java 25
-    
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
-          java-version: 25
-          distribution: 'zulu'
+          java-version: '25'
+          distribution: zulu
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      - name: Check style
+        # Existing violations are warnings; keep them advisory for now.
+        run: ./gradlew --no-daemon --build-cache --stacktrace checkstyleMain checkstyleTest
+      - name: Upload lint reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lint-reports-java-25
+          path: build/reports/checkstyle/
+          if-no-files-found: warn
+          retention-days: 7
 
-      - name: Gradle cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-jdk25-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-jdk25
-            
-      - name: Compile with Gradle
-        run: ./gradlew assemble
-  
-  check_java_minimum:
+  build_test:
+    name: Build and test (Java ${{ matrix.java }})
     runs-on: ubuntu-latest
-    name: Java 17
-    
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [17, 25]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
-          java-version: 17
-          distribution: 'zulu'
-
-      - name: Gradle cache
-        uses: actions/cache@v3
+          java-version: ${{ matrix.java }}
+          distribution: zulu
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      - name: Build and test
+        run: ./gradlew --no-daemon --build-cache --stacktrace assemble test
+      - name: Generate coverage report
+        if: matrix.java == 17
+        run: ./gradlew --no-daemon --build-cache --stacktrace jacocoTestReport
+      - name: Upload coverage to Codecov
+        if: matrix.java == 17
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
+          files: build/reports/jacoco/test/jacocoTestReport.xml
+          disable_search: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-java-${{ matrix.java }}
           path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-jdk17-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-jdk17
-            
-      - name: Compile with Gradle
-        run: ./gradlew assemble
-  
-      - name: Test
-        run: ./gradlew check
-  
-      - name: Code coverage
-        uses: codecov/codecov-action@v3
-
+            build/test-results/test/
+            build/reports/tests/test/
+            build/reports/jacoco/test/
+          if-no-files-found: warn
+          retention-days: 7
