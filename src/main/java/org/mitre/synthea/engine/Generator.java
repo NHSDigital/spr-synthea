@@ -17,8 +17,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -403,6 +405,7 @@ public class Generator {
     }
 
     ExecutorService threadPool = Executors.newFixedThreadPool(threadPoolSize);
+    List<Future<?>> generationTasks = new LinkedList<>();
 
     if (options.initialPopulationSnapshotPath != null) {
       FileInputStream fis = null;
@@ -430,7 +433,9 @@ public class Generator {
         for (int i = 0; i < initialPopulation.size(); i++) {
           final int index = i;
           final Person p = initialPopulation.get(i);
-          threadPool.submit(() -> updateRecordExportPerson(p, index));
+          generationTasks.add(threadPool.submit(() -> {
+            updateRecordExportPerson(p, index);
+          }));
         }
       }
     } else if (this.options.singlePersonSeed == null) {
@@ -438,21 +443,41 @@ public class Generator {
       for (int i = 0; i < this.options.population; i++) {
         final int index = i;
         final long seed = this.populationRandom.randLong();
-        threadPool.submit(() -> generatePerson(index, seed));
+        // Submit a Runnable so completed Futures do not retain the generated Person.
+        generationTasks.add(threadPool.submit(() -> {
+          generatePerson(index, seed);
+        }));
       }
     } else {
       // we have a single fixed seed to generate, don't bother with threadpool
       generatePerson(0, this.options.singlePersonSeed);
     }
 
+    int failedTasks = 0;
+    Throwable firstFailure = null;
     try {
       threadPool.shutdown();
       while (!threadPool.awaitTermination(30, TimeUnit.SECONDS)) {
         System.out.println("Waiting for threads to finish... " + threadPool);
       }
+      for (Future<?> task : generationTasks) {
+        try {
+          task.get();
+        } catch (ExecutionException e) {
+          failedTasks++;
+          if (firstFailure == null) {
+            firstFailure = e.getCause();
+          }
+        }
+      }
     } catch (InterruptedException e) {
-      System.out.println("Generator interrupted. Attempting to shut down associated thread pool.");
       threadPool.shutdownNow();
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Patient generation interrupted; output is incomplete.", e);
+    }
+    if (failedTasks > 0) {
+      throw new IllegalStateException("Patient generation failed for " + failedTasks + " of "
+          + generationTasks.size() + " tasks; output is incomplete.", firstFailure);
     }
 
     // Save a snapshot of the generated population using Java Serialization
