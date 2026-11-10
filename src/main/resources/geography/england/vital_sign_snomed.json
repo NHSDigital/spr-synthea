@@ -1,0 +1,49 @@
+{
+  "description": "SNOMED CT observable entities added alongside LOINC vital sign codes in UK Core mode (UK Core binds Observation.code, preferred, to SNOMED CT).",
+  "loinc_to_snomed": {
+    "8302-2": {
+      "code": "1153637007",
+      "display": "Body height"
+    },
+    "29463-7": {
+      "code": "27113001",
+      "display": "Body weight"
+    },
+    "39156-5": {
+      "code": "60621009",
+      "display": "Body mass index"
+    },
+    "85354-9": {
+      "code": "75367002",
+      "display": "Blood pressure"
+    },
+    "8480-6": {
+      "code": "271649006",
+      "display": "Systolic blood pressure"
+    },
+    "8462-4": {
+      "code": "271650006",
+      "display": "Diastolic blood pressure"
+    },
+    "8867-4": {
+      "code": "364075005",
+      "display": "Heart rate"
+    },
+    "9279-1": {
+      "code": "86290005",
+      "display": "Respiratory rate"
+    },
+    "8310-5": {
+      "code": "386725007",
+      "display": "Body temperature"
+    },
+    "2708-6": {
+      "code": "103228002",
+      "display": "Hemoglobin saturation with oxygen"
+    },
+    "59408-5": {
+      "code": "103228002",
+      "display": "Hemoglobin saturation with oxygen"
+    }
+  }
+}

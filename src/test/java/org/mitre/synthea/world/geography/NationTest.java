@@ -11,6 +11,7 @@ import static org.junit.Assert.fail;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mitre.synthea.export.FhirR4;
 import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.DefaultRandomNumberGenerator;
 import org.mitre.synthea.helpers.Utilities;
@@ -81,6 +82,7 @@ public class NationTest {
     assertEquals("names.yml", Nation.Resource.NAMES.path());
     assertEquals("providers/nursing.csv", Nation.Resource.NURSING.path());
     assertNull(Nation.Resource.ETHNICITY.path());
+    assertNull(Nation.Resource.VITAL_SIGN_SNOMED.path());
     assertNull(NationalEthnicity.current());
   }
 
@@ -123,6 +125,20 @@ public class NationTest {
     assertEquals("S", england.pickCategory("unknown", "english", random));
     String asian = england.pickCategory("asian", "english", random);
     assertNotNull(england.getCategoryDisplay(asian));
+  }
+
+  @Test
+  public void englandVitalSignSnomedLoads() {
+    assertEquals("271649006", TestAccess.vitalSign("8480-6"));
+    Config.set(Nation.COUNTRY_CODE_KEY, "US");
+    assertNull(TestAccess.vitalSign("8480-6"));
+  }
+
+  /** Access to FhirR4's protected vital sign mappings. */
+  private static class TestAccess extends FhirR4 {
+    static String vitalSign(String loinc) {
+      return vitalSignSnomed().containsKey(loinc) ? vitalSignSnomed().get(loinc).code : null;
+    }
   }
 
   @Test

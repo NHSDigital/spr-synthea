@@ -20,6 +20,7 @@ Setting the nation to England also turns on:
 | `names.yml` | Name lists by origin, the `name_origins` rules that choose them, and UK street types | `generate.names.default_file` |
 | `ethnicity.json` | Ethnic groups, NHS ethnic category weights and displays, and main language by group | `generate.demographics.ethnicity_file` |
 | `immunization_schedule.json` | NHS England routine immunisation schedule, including historical changes | `generate.immunization_schedule` |
+| `vital_sign_snomed.json` | SNOMED CT observable entity codes added next to LOINC vital sign codes in FHIR R4 | `exporter.fhir.vital_sign_snomed_file` |
 | `providers/` | NHS hospitals, GP practices and urgent care sites in the South West (see `providers/README.md`) | `generate.providers.<type>.default_file` |
 | `payers/` | NHS England as the single payer | `generate.payers.*` |
 

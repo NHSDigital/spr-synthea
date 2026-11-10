@@ -173,6 +173,8 @@ public enum Nation {
         "immunization_schedule.json"),
     /** Ethnic groups, national ethnic categories and main languages (UK nations only). */
     ETHNICITY("generate.demographics.ethnicity_file", null, "ethnicity.json"),
+    /** LOINC vital sign to SNOMED CT observable mappings for UK Core (UK nations only). */
+    VITAL_SIGN_SNOMED("exporter.fhir.vital_sign_snomed_file", null, "vital_sign_snomed.json"),
     HOSPITALS("generate.providers.hospitals.default_file", "providers/hospitals.csv",
         "providers/hospitals.csv"),
     IHS_HOSPITALS("generate.providers.ihs.hospitals.default_file",

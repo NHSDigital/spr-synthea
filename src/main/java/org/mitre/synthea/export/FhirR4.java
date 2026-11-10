@@ -7,6 +7,7 @@ import com.google.common.collect.Table;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.awt.geom.Point2D;
 import java.io.IOException;
@@ -203,6 +204,8 @@ public class FhirR4 {
       "https://fhir.hl7.org.uk/CodeSystem/UKCore-NHSNumberVerificationStatusEngland";
   protected static final String UK_CORE_ETHNIC_CATEGORY =
       "https://fhir.hl7.org.uk/StructureDefinition/Extension-UKCore-EthnicCategory";
+  private static final Map<String, Map<String, Code>> VITAL_SIGN_SNOMED_CACHE =
+      new java.util.concurrent.ConcurrentHashMap<>();
 
   protected static String US_CORE_VERSION =
       Config.get("exporter.fhir.us_core_version", "6.1.0");
@@ -1946,6 +1949,51 @@ public class FhirR4 {
 
 
   /**
+   * The configured nation's LOINC vital sign to SNOMED CT observable entity mappings, from its
+   * vital_sign_snomed.json (see Nation.Resource.VITAL_SIGN_SNOMED). UK Core binds
+   * Observation.code (preferred) to SNOMED CT, so these are added alongside the LOINC coding,
+   * which is kept for interoperability and the FHIR vital signs profile.
+   * @return map of LOINC code to SNOMED CT code; empty if the nation has no mappings.
+   */
+  protected static Map<String, Code> vitalSignSnomed() {
+    String path = Nation.Resource.VITAL_SIGN_SNOMED.path();
+    if (path == null) {
+      return Collections.emptyMap();
+    }
+    return VITAL_SIGN_SNOMED_CACHE.computeIfAbsent(path, p -> {
+      try {
+        JsonObject json = JsonParser.parseString(Utilities.readResource(p, true, true))
+            .getAsJsonObject().getAsJsonObject("loinc_to_snomed");
+        Map<String, Code> map = new HashMap<>();
+        for (Map.Entry<String, JsonElement> e : json.entrySet()) {
+          JsonObject snomed = e.getValue().getAsJsonObject();
+          map.put(e.getKey(), new Code(SNOMED_URI, snomed.get("code").getAsString(),
+              snomed.get("display").getAsString()));
+        }
+        return map;
+      } catch (IOException e) {
+        throw new IllegalStateException("Unable to load vital sign SNOMED CT codes " + p, e);
+      }
+    });
+  }
+
+  /**
+   * Add the SNOMED CT observable entity equivalent of a LOINC vital sign code, if known.
+   * @param concept the CodeableConcept to extend.
+   */
+  protected static void addSnomedVitalSignCoding(CodeableConcept concept) {
+    Map<String, Code> vitalSignSnomed = vitalSignSnomed();
+    for (Coding coding : new ArrayList<>(concept.getCoding())) {
+      Code snomed = LOINC_URI.equals(coding.getSystem())
+          ? vitalSignSnomed.get(coding.getCode()) : null;
+      if (snomed != null && concept.getCoding().stream().noneMatch(
+          c -> SNOMED_URI.equals(c.getSystem()) && snomed.code.equals(c.getCode()))) {
+        concept.addCoding(new Coding(SNOMED_URI, snomed.code, snomed.display));
+      }
+    }
+  }
+
+  /**
    * Map the given Observation into a FHIR Observation resource, and add it to the given Bundle.
    *
    * @param personEntry    The Person Entry
@@ -1978,6 +2026,9 @@ public class FhirR4 {
         observationResource.getCode().addCoding(coding);
       }
     }
+    if (USE_UK_CORE_IG) {
+      addSnomedVitalSignCoding(observationResource.getCode());
+    }
 
     // map the code to the official display, ex "vital-signs" --> "Vital Signs"
     // in all cases the text is the same just with these two differences- space/hyphen and caps
@@ -1999,6 +2050,9 @@ public class FhirR4 {
       for (Observation subObs : observation.observations) {
         ObservationComponentComponent comp = new ObservationComponentComponent();
         comp.setCode(mapCodeToCodeableConcept(subObs.codes.get(0), LOINC_URI));
+        if (USE_UK_CORE_IG) {
+          addSnomedVitalSignCoding(comp.getCode());
+        }
         Type value = mapValueToFHIRType(subObs.value, subObs.unit);
         comp.setValue(value);
         observationResource.addComponent(comp);

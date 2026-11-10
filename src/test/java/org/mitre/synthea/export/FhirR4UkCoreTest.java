@@ -27,6 +27,7 @@ import org.hl7.fhir.r4.model.CodeableConcept;
 import org.hl7.fhir.r4.model.Coding;
 import org.hl7.fhir.r4.model.Extension;
 import org.hl7.fhir.r4.model.Identifier;
+import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Procedure;
 import org.hl7.fhir.r4.model.Reference;
@@ -164,6 +165,36 @@ public class FhirR4UkCoreTest {
   private static boolean hasCoding(CodeableConcept concept, String system, String code) {
     return concept.getCoding().stream()
         .anyMatch(c -> system.equals(c.getSystem()) && code.equals(c.getCode()));
+  }
+
+  @Test
+  public void vitalSignsHaveSnomedAndLoincCodes() {
+    String loinc = "http://loinc.org";
+    String snomed = "http://snomed.info/sct";
+    int heights = 0;
+    int bloodPressures = 0;
+    for (Person person : people) {
+      Bundle bundle = FhirR4.convertToFHIR(person, System.currentTimeMillis());
+      for (BundleEntryComponent entry : bundle.getEntry()) {
+        if (!(entry.getResource() instanceof Observation)) {
+          continue;
+        }
+        Observation obs = (Observation) entry.getResource();
+        if (hasCoding(obs.getCode(), loinc, "8302-2")) {
+          assertTrue(hasCoding(obs.getCode(), snomed, "1153637007"));
+          heights++;
+        } else if (hasCoding(obs.getCode(), loinc, "85354-9")) {
+          assertTrue(hasCoding(obs.getCode(), snomed, "75367002"));
+          for (Observation.ObservationComponentComponent comp : obs.getComponent()) {
+            assertTrue(comp.getCode().getCoding().stream()
+                .anyMatch(c -> snomed.equals(c.getSystem())));
+          }
+          bloodPressures++;
+        }
+      }
+    }
+    assertTrue(heights > 0);
+    assertTrue(bloodPressures > 0);
   }
 
   @Test
