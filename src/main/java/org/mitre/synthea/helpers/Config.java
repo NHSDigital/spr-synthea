@@ -95,8 +95,9 @@ public abstract class Config {
    * @return value for the property as a double, or defaultValue if not found
    */
   public static double getAsDouble(String key, double defaultValue) {
-    if (properties.containsKey(key)) {
-      return getAsDouble(key);
+    String value = get(key);
+    if (value != null) {
+      return Double.parseDouble(value);
     } else {
       return defaultValue;
     }
@@ -120,8 +121,9 @@ public abstract class Config {
    * @return value for the property as a boolean, or defaultValue if not found
    */
   public static boolean getAsBoolean(String key, boolean defaultValue) {
-    if (properties.containsKey(key)) {
-      return getAsBoolean(key);
+    String value = get(key);
+    if (value != null) {
+      return Boolean.parseBoolean(value);
     } else {
       return defaultValue;
     }
@@ -145,8 +147,9 @@ public abstract class Config {
    * @return value for the property as an int, or defaultValue if not found
    */
   public static int getAsInteger(String key, int defaultValue) {
-    if (properties.containsKey(key)) {
-      return getAsInteger(key);
+    String value = get(key);
+    if (value != null) {
+      return Integer.parseInt(value);
     } else {
       return defaultValue;
     }
@@ -170,8 +173,9 @@ public abstract class Config {
    * @return value for the property as a long, or defaultValue if not found
    */
   public static long getAsLong(String key, long defaultValue) {
-    if (properties.containsKey(key)) {
-      return getAsLong(key);
+    String value = get(key);
+    if (value != null) {
+      return Long.parseLong(value);
     } else {
       return defaultValue;
     }
@@ -208,8 +212,6 @@ public abstract class Config {
    * @param key property name
    */
   public static void remove(String key) {
-    if (properties.containsKey(key)) {
-      properties.remove(key);
-    }
+    properties.remove(key);
   }
 }
