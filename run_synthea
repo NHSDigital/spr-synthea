@@ -1,26 +1,37 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 ##############################################################################
 ##
 ##  Synthea launcher for UN*X
 ##
+##  Pass --debug-jvm to start the JVM suspended, waiting for a debugger on port 5005.
+##
 ##############################################################################
 
-if [ $# -eq 0 ]; then
-  # run synthea with no args
-  ./gradlew run
+DEBUG_JVM=""
+ARGS=()
 
+for arg in "$@"
+do
+  if [ "$arg" = "--debug-jvm" ]; then
+    DEBUG_JVM="--debug-jvm"
+  else
+    ARGS+=("$arg")
+  fi
+done
+
+if [ ${#ARGS[@]} -eq 0 ]; then
+  # run synthea with no args
+  ./gradlew run $DEBUG_JVM
 else
   # Running Synthea with arguments
   # For simplicity, do nothing and just pass the args to gradle
   SYNTHEA_ARGS=
-
-  for arg in "$@"
+  for arg in "${ARGS[@]}"
   do
-      SYNTHEA_ARGS=$SYNTHEA_ARGS\'$arg\',
-      # Trailing comma ok, don't need to remove it
+    SYNTHEA_ARGS=$SYNTHEA_ARGS\'$arg\',
+    # Trailing comma ok, don't need to remove it
   done
 
-  ./gradlew run -Params="[$SYNTHEA_ARGS]"
+  ./gradlew run $DEBUG_JVM -Params="[$SYNTHEA_ARGS]"
 fi
-

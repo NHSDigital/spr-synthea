@@ -57,6 +57,29 @@ public class GeneratorTest {
   }
 
   @Test
+  public void testWorkerFailurePropagatesFromRun() throws Exception {
+    Generator.GeneratorOptions opts = new Generator.GeneratorOptions();
+    opts.population = 3;
+    opts.threadPoolSize = 2;
+    Generator generator = new Generator(opts) {
+      @Override
+      public Person generatePerson(int index, long personSeed) {
+        if (index == 1) {
+          throw new IllegalStateException("simulated worker failure");
+        }
+        return super.generatePerson(index, personSeed);
+      }
+    };
+    try {
+      generator.run();
+      org.junit.Assert.fail("Expected run() to fail when a worker task fails");
+    } catch (IllegalStateException e) {
+      assertTrue(e.getMessage(), e.getMessage().contains("failed for 1 of 3 tasks"));
+      assertEquals("simulated worker failure", e.getCause().getMessage());
+    }
+  }
+
+  @Test
   public void testGeneratorCreatesPeople() throws Exception {
     int numberOfPeople = 1;
     Generator generator = new Generator(numberOfPeople);

@@ -560,18 +560,26 @@ public class Utilities {
   }
 
   /**
+   * Lazily initialised, thread-safe Gson instance. Gson is immutable and thread-safe once built,
+   * so a single shared instance avoids rebuilding the type adapters on every module load.
+   */
+  private static final class GsonHolder {
+    private static final Gson INSTANCE = new GsonBuilder()
+        .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+        .registerTypeAdapterFactory(InnerClassTypeAdapterFactory.of(Logic.class,"condition_type"))
+        .registerTypeAdapterFactory(InnerClassTypeAdapterFactory.of(State.class, "type"))
+        // as of JDK16, GSON can no longer handle certain sdk classes
+        .registerTypeAdapter(Random.class, new SerializableTypeAdapter<Random>())
+        .create();
+  }
+
+  /**
    * Get a Gson object, preconfigured to load the GMF modules into classes.
    *
    * @return Gson object to unmarshal GMF JSON into objects
    */
   public static Gson getGson() {
-    return new GsonBuilder()
-      .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
-      .registerTypeAdapterFactory(InnerClassTypeAdapterFactory.of(Logic.class,"condition_type"))
-      .registerTypeAdapterFactory(InnerClassTypeAdapterFactory.of(State.class, "type"))
-      // as of JDK16, GSON can no longer handle certain sdk classes
-      .registerTypeAdapter(Random.class, new SerializableTypeAdapter<Random>())
-      .create();
+    return GsonHolder.INSTANCE;
   }
 
   /**
