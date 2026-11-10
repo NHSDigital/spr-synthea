@@ -205,6 +205,8 @@ public final class LifecycleModule extends Module {
           NhsNumberGenerator.getInstance().randomNhsNumber(nhsRandom));
     }
 
+    attributes.put(Person.COUNTRY, Config.get("generate.geography.country_code", "US"));
+
     String city = (String) attributes.get(Person.CITY);
     Location location = (Location) attributes.get(Person.LOCATION);
     if (location != null) {
@@ -1329,6 +1331,7 @@ public final class LifecycleModule extends Module {
     Attributes.inventory(attributes, m, Person.BIRTH_CITY, false, true, "Bedford");
     Attributes.inventory(attributes, m, Person.BIRTH_COUNTRY, false, true, COUNTRY_CODE);
     Attributes.inventory(attributes, m, Person.BIRTH_STATE, false, true, "Massachusetts");
+    Attributes.inventory(attributes, m, Person.COUNTRY, false, true, COUNTRY_CODE);
     Attributes.inventory(attributes, m, Person.BIRTHDATE, false, true, null);
     Attributes.inventory(attributes, m, Person.BIRTHPLACE, false, true, "Boston");
     Attributes.inventory(attributes, m, Person.ETHNICITY, false, true, null);

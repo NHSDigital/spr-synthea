@@ -8,6 +8,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.NhsNumberGenerator;
 import org.mitre.synthea.helpers.PhysiologyValueGenerator;
 import org.mitre.synthea.helpers.Utilities;
@@ -45,6 +46,19 @@ public class LifecycleModuleTest {
     Assert.assertTrue(nhsNumber.startsWith("9"));
     // the US-style SSN is still populated for exporters that need it
     Assert.assertNotNull(person.attributes.get(Person.IDENTIFIER_SSN));
+  }
+
+  @Test
+  public void testBirthAssignsSimulationCountry() {
+    String original = Config.get("generate.geography.country_code");
+    try {
+      Config.set("generate.geography.country_code", "GB");
+      Person person = newbornWithDemographics(12345L, "F");
+      LifecycleModule.birth(person, 0L);
+      assertEquals("GB", person.attributes.get(Person.COUNTRY));
+    } finally {
+      Config.set("generate.geography.country_code", original);
+    }
   }
 
   @Test

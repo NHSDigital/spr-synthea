@@ -1,0 +1,859 @@
+{
+  "name": "Hypertension Medication (UK, NICE NG136)",
+  "remarks": [
+    "Antihypertensive drug treatment following NICE guideline NG136 (Hypertension in adults: diagnosis and management), https://www.nice.org.uk/guidance/ng136.",
+    "Called from the hypertension module when the person's country attribute is GB. Mirrors the contract of medications/hypertension_medication: sets hypertension_severe on first call and increments hypertension_medication_step on every call.",
+    "Ramipril is used as the ACE inhibitor and candesartan as the ARB, as the most commonly prescribed agents in England. Indapamide is the thiazide-like diuretic recommended by NICE."
+  ],
+  "states": {
+    "Initial": {
+      "type": "Initial",
+      "conditional_transition": [
+        {
+          "transition": "Initialize_Step",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "hypertension_medication_step",
+            "operator": "is nil"
+          }
+        },
+        {
+          "transition": "Increase_Step"
+        }
+      ]
+    },
+    "Initialize_Step": {
+      "type": "SetAttribute",
+      "attribute": "hypertension_medication_step",
+      "value": 0,
+      "conditional_transition": [
+        {
+          "transition": "High_BP",
+          "condition": {
+            "condition_type": "Vital Sign",
+            "vital_sign": "Systolic Blood Pressure",
+            "operator": "<",
+            "value": 160
+          }
+        },
+        {
+          "transition": "Very_High_BP"
+        }
+      ]
+    },
+    "High_BP": {
+      "type": "SetAttribute",
+      "attribute": "hypertension_severe",
+      "value": false,
+      "direct_transition": "Increase_Step"
+    },
+    "Very_High_BP": {
+      "type": "SetAttribute",
+      "attribute": "hypertension_severe",
+      "value": true,
+      "direct_transition": "Increase_Step"
+    },
+    "Increase_Step": {
+      "type": "Counter",
+      "attribute": "hypertension_medication_step",
+      "action": "increment",
+      "direct_transition": "Check_Step"
+    },
+    "Check_Step": {
+      "type": "Simple",
+      "conditional_transition": [
+        {
+          "transition": "Step_1",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "hypertension_medication_step",
+            "operator": "==",
+            "value": 1
+          }
+        },
+        {
+          "transition": "Step_2",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "hypertension_medication_step",
+            "operator": "==",
+            "value": 2
+          }
+        },
+        {
+          "transition": "Step_3",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "hypertension_medication_step",
+            "operator": "==",
+            "value": 3
+          }
+        },
+        {
+          "transition": "Step_4",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "hypertension_medication_step",
+            "operator": "==",
+            "value": 4
+          }
+        },
+        {
+          "transition": "Refer_To_Specialist"
+        }
+      ],
+      "remarks": [
+        "NICE NG136 treatment steps. Step 1 is monotherapy, step 2 dual therapy, step 3 triple therapy (ACEi/ARB + CCB + thiazide-like diuretic), step 4 resistant hypertension."
+      ]
+    },
+    "Step_1": {
+      "type": "Simple",
+      "conditional_transition": [
+        {
+          "transition": "Labetalol",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "pregnant",
+            "operator": "==",
+            "value": true
+          }
+        },
+        {
+          "transition": "ACEi_or_ARB_1",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "diabetes",
+            "operator": "==",
+            "value": true
+          }
+        },
+        {
+          "transition": "Amlodipine_1",
+          "condition": {
+            "condition_type": "Race",
+            "race": "Black"
+          }
+        },
+        {
+          "transition": "Amlodipine_1",
+          "condition": {
+            "condition_type": "Age",
+            "operator": ">=",
+            "quantity": 55,
+            "unit": "years"
+          }
+        },
+        {
+          "transition": "ACEi_or_ARB_1"
+        }
+      ],
+      "remarks": [
+        "Pregnancy: labetalol (NICE NG133). Type 2 diabetes or age < 55 and not Black African/African-Caribbean: ACEi or ARB. Otherwise: CCB."
+      ]
+    },
+    "Labetalol": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 896758,
+          "display": "labetalol hydrochloride 100 MG Oral Tablet"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "ACEi_or_ARB_1": {
+      "type": "Simple",
+      "conditional_transition": [
+        {
+          "transition": "Candesartan_1",
+          "condition": {
+            "condition_type": "Race",
+            "race": "Black"
+          }
+        },
+        {
+          "transition": "Candesartan_1",
+          "condition": {
+            "condition_type": "Active Allergy",
+            "codes": [
+              {
+                "system": "RxNorm",
+                "code": "29046",
+                "display": "Lisinopril"
+              }
+            ]
+          }
+        },
+        {
+          "transition": "Ramipril_1"
+        }
+      ]
+    },
+    "Ramipril_1": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 198188,
+          "display": "ramipril 2.5 MG Oral Capsule"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Candesartan_1": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 153823,
+          "display": "candesartan cilexetil 8 MG Oral Tablet"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Amlodipine_1": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 197361,
+          "display": "amLODIPine 5 MG Oral Tablet"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Step_2": {
+      "type": "Simple",
+      "complex_transition": [
+        {
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "pregnant",
+            "operator": "==",
+            "value": true
+          },
+          "transition": "Terminal"
+        },
+        {
+          "condition": {
+            "condition_type": "Or",
+            "conditions": [
+              {
+                "condition_type": "Active Medication",
+                "codes": [
+                  {
+                    "system": "RxNorm",
+                    "code": 198188,
+                    "display": "ramipril 2.5 MG Oral Capsule"
+                  }
+                ]
+              },
+              {
+                "condition_type": "Active Medication",
+                "codes": [
+                  {
+                    "system": "RxNorm",
+                    "code": 153823,
+                    "display": "candesartan cilexetil 8 MG Oral Tablet"
+                  }
+                ]
+              }
+            ]
+          },
+          "distributions": [
+            {
+              "transition": "Amlodipine_2",
+              "distribution": 0.5
+            },
+            {
+              "transition": "Indapamide_2",
+              "distribution": 0.5
+            }
+          ]
+        },
+        {
+          "condition": {
+            "condition_type": "Active Medication",
+            "codes": [
+              {
+                "system": "RxNorm",
+                "code": 197361,
+                "display": "amLODIPine 5 MG Oral Tablet"
+              }
+            ]
+          },
+          "distributions": [
+            {
+              "transition": "ACEi_or_ARB_2",
+              "distribution": 0.5
+            },
+            {
+              "transition": "Indapamide_2",
+              "distribution": 0.5
+            }
+          ]
+        },
+        {
+          "distributions": [
+            {
+              "transition": "ACEi_or_ARB_2",
+              "distribution": 1
+            }
+          ]
+        }
+      ],
+      "remarks": [
+        "Add a CCB or thiazide-like diuretic to an ACEi/ARB; add an ACEi/ARB or thiazide-like diuretic to a CCB."
+      ]
+    },
+    "Amlodipine_2": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 197361,
+          "display": "amLODIPine 5 MG Oral Tablet"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication_2",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Indapamide_2": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 197816,
+          "display": "indapamide 2.5 MG Oral Tablet"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication_2",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "ACEi_or_ARB_2": {
+      "type": "Simple",
+      "conditional_transition": [
+        {
+          "transition": "Candesartan_2",
+          "condition": {
+            "condition_type": "Race",
+            "race": "Black"
+          }
+        },
+        {
+          "transition": "Candesartan_2",
+          "condition": {
+            "condition_type": "Active Allergy",
+            "codes": [
+              {
+                "system": "RxNorm",
+                "code": "29046",
+                "display": "Lisinopril"
+              }
+            ]
+          }
+        },
+        {
+          "transition": "Ramipril_2"
+        }
+      ]
+    },
+    "Ramipril_2": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 198188,
+          "display": "ramipril 2.5 MG Oral Capsule"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication_2",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Candesartan_2": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 153823,
+          "display": "candesartan cilexetil 8 MG Oral Tablet"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication_2",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Step_3": {
+      "type": "Simple",
+      "conditional_transition": [
+        {
+          "transition": "Terminal",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "pregnant",
+            "operator": "==",
+            "value": true
+          }
+        },
+        {
+          "transition": "ACEi_or_ARB_3",
+          "condition": {
+            "condition_type": "Not",
+            "condition": {
+              "condition_type": "Or",
+              "conditions": [
+                {
+                  "condition_type": "Active Medication",
+                  "codes": [
+                    {
+                      "system": "RxNorm",
+                      "code": 198188,
+                      "display": "ramipril 2.5 MG Oral Capsule"
+                    }
+                  ]
+                },
+                {
+                  "condition_type": "Active Medication",
+                  "codes": [
+                    {
+                      "system": "RxNorm",
+                      "code": 153823,
+                      "display": "candesartan cilexetil 8 MG Oral Tablet"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "transition": "Amlodipine_3",
+          "condition": {
+            "condition_type": "Not",
+            "condition": {
+              "condition_type": "Active Medication",
+              "codes": [
+                {
+                  "system": "RxNorm",
+                  "code": 197361,
+                  "display": "amLODIPine 5 MG Oral Tablet"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "transition": "Indapamide_3",
+          "condition": {
+            "condition_type": "Not",
+            "condition": {
+              "condition_type": "Active Medication",
+              "codes": [
+                {
+                  "system": "RxNorm",
+                  "code": 197816,
+                  "display": "indapamide 2.5 MG Oral Tablet"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "transition": "Terminal"
+        }
+      ],
+      "remarks": [
+        "Triple therapy: ACEi or ARB + CCB + thiazide-like diuretic."
+      ]
+    },
+    "ACEi_or_ARB_3": {
+      "type": "Simple",
+      "conditional_transition": [
+        {
+          "transition": "Candesartan_3",
+          "condition": {
+            "condition_type": "Race",
+            "race": "Black"
+          }
+        },
+        {
+          "transition": "Candesartan_3",
+          "condition": {
+            "condition_type": "Active Allergy",
+            "codes": [
+              {
+                "system": "RxNorm",
+                "code": "29046",
+                "display": "Lisinopril"
+              }
+            ]
+          }
+        },
+        {
+          "transition": "Ramipril_3"
+        }
+      ]
+    },
+    "Ramipril_3": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 198188,
+          "display": "ramipril 2.5 MG Oral Capsule"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication_3",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Candesartan_3": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 153823,
+          "display": "candesartan cilexetil 8 MG Oral Tablet"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication_3",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Amlodipine_3": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 197361,
+          "display": "amLODIPine 5 MG Oral Tablet"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication_3",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Indapamide_3": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 197816,
+          "display": "indapamide 2.5 MG Oral Tablet"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication_3",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Step_4": {
+      "type": "Simple",
+      "conditional_transition": [
+        {
+          "transition": "Terminal",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "pregnant",
+            "operator": "==",
+            "value": true
+          }
+        },
+        {
+          "transition": "Resistant_Hypertension"
+        }
+      ]
+    },
+    "Resistant_Hypertension": {
+      "type": "Simple",
+      "distributed_transition": [
+        {
+          "transition": "Spironolactone_4",
+          "distribution": 0.6
+        },
+        {
+          "transition": "Doxazosin_4",
+          "distribution": 0.2
+        },
+        {
+          "transition": "Bisoprolol_4",
+          "distribution": 0.2
+        }
+      ],
+      "remarks": [
+        "Resistant hypertension: low-dose spironolactone if blood potassium <= 4.5 mmol/l, otherwise an alpha-blocker or beta-blocker."
+      ]
+    },
+    "Spironolactone_4": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 313096,
+          "display": "spironolactone 25 MG Oral Tablet"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication_4",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Doxazosin_4": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 197627,
+          "display": "doxazosin 4 MG Oral Tablet"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication_4",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Bisoprolol_4": {
+      "type": "MedicationOrder",
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": 854905,
+          "display": "bisoprolol fumarate 5 MG Oral Tablet"
+        }
+      ],
+      "chronic": true,
+      "assign_to_attribute": "hypertension_medication_4",
+      "reason": "hypertension_dx",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 1,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 28,
+          "unit": "days"
+        },
+        "refills": 12
+      },
+      "direct_transition": "Terminal"
+    },
+    "Refer_To_Specialist": {
+      "type": "Simple",
+      "direct_transition": "Terminal",
+      "remarks": [
+        "BP uncontrolled on four drugs: seek specialist advice."
+      ]
+    },
+    "Terminal": {
+      "type": "Terminal"
+    }
+  },
+  "gmf_version": 2
+}

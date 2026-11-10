@@ -89,6 +89,12 @@ public class Person implements Serializable, RandomNumberGenerator, QuadTreeElem
   public static final String BIRTH_CITY = "birth_city";
   /** Represents the country of birth of the person. */
   public static final String BIRTH_COUNTRY = "birth_country";
+  /**
+   * Represents the ISO country code of the country the simulation is set in
+   * (generate.geography.country_code), e.g. "US" or "GB". Modules can use this
+   * to select country-specific clinical pathways.
+   */
+  public static final String COUNTRY = "country";
   /** Represents the state of birth of the person. */
   public static final String BIRTH_STATE = "birth_state";
   /** Represents the birthplace of the person. */
