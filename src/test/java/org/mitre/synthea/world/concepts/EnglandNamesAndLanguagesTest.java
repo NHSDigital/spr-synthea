@@ -64,7 +64,7 @@ public class EnglandNamesAndLanguagesTest {
     Set<String> female = list("english.F");
     Set<String> family = list("english.family");
     assertTrue(family.contains("Smith"));
-    assertTrue(family.contains("Patel"));
+    assertFalse("Patel is an Indian-origin name", family.contains("Patel"));
     for (int i = 0; i < 200; i++) {
       Person person = new Person(i);
       String first = Names.fakeFirstName("M", "english", person);
@@ -164,5 +164,64 @@ public class EnglandNamesAndLanguagesTest {
     assertEquals("2131-1", RaceAndEthnicity.LOOK_UP_CDC_RACE.get("mixed"));
     assertEquals("2186-5", RaceAndEthnicity.LOOK_UP_CDC_ETHNICITY_CODE.get("mixed"));
     assertEquals("non-hispanic", RaceAndEthnicity.LOOK_UP_CDC_ETHNICITY_DISPLAY.get("mixed"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void everyEthnicCategoryHasNameOrigins() throws Exception {
+    Map<String, Object> json = new Gson().fromJson(
+        Utilities.readResource("geography/england/ethnicity.json"), Map.class);
+    Map<String, Map<String, Object>> weights = (Map<String, Map<String, Object>>)
+        ((Map<String, Object>) json.get("ethnic_category")).get("weights");
+    Map<String, Object> byCategory =
+        (Map<String, Object>) ukNames.get("name_origins.by_ethnic_category");
+    for (Map<String, Object> group : weights.values()) {
+      for (String code : group.keySet()) {
+        assertTrue("no name origins for ethnic category " + code, byCategory.containsKey(code));
+      }
+    }
+    assertFalse("spanish is not a default England origin",
+        ((Map<String, Object>) ukNames.get("name_origins.default")).containsKey("spanish"));
+  }
+
+  @Test
+  public void languageTakesPrecedenceOverEthnicCategory() {
+    Person person = new Person(5L);
+    assertEquals("polish", Names.nameOrigin("polish", "A", person));
+    assertEquals("spanish", Names.nameOrigin("spanish", "C", person));
+    assertEquals("pakistani", Names.nameOrigin("urdu", "H", person));
+    assertEquals("english", Names.nameOrigin("english", "A", person));
+    assertEquals("english", Names.nameOrigin(null, null, person));
+    assertEquals("english", Names.nameOrigin("japanese", "Z", person));
+    Set<String> polish = list("polish.family");
+    String last = Names.fakeLastName("polish", person);
+    if (Names.appendNumbersToNames) {
+      last = last.replaceAll("[0-9]+$", "");
+    }
+    assertTrue(last, polish.contains(last));
+  }
+
+  @Test
+  public void ethnicCategoryWeightsChooseOrigins() {
+    Map<String, Integer> counts = new HashMap<>();
+    Person person = new Person(11L);
+    int n = 2000;
+    // English is not mapped by language, so English speakers' names follow their category
+    for (int i = 0; i < n; i++) {
+      counts.merge(Names.nameOrigin("english", "H", person), 1, Integer::sum);
+    }
+    double indian = counts.getOrDefault("indian", 0) / (double) n;
+    assertTrue("indian share " + indian, indian > 0.85 && indian < 0.95);
+    assertEquals(Set.of("indian", "english"), counts.keySet());
+  }
+
+  @Test
+  public void unknownOriginFallsBackToDefault() {
+    Set<String> family = list("english.family");
+    String last = Names.fakeLastName("klingon", new Person(3L));
+    if (Names.appendNumbersToNames) {
+      last = last.replaceAll("[0-9]+$", "");
+    }
+    assertTrue(last, family.contains(last));
   }
 }

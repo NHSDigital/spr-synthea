@@ -18,7 +18,7 @@ Setting the nation to England also turns on:
 | `postcodes.csv` | Postcode districts with coordinates | `generate.geography.zipcodes.default_file` |
 | `sdoh.csv` | Social determinants of health by county | `generate.geography.sdoh.default_file` |
 | `timezones.csv` | Time zone for each region | `generate.geography.timezones.default_file` |
-| `names.yml` | English names and UK street types | `generate.names.default_file` |
+| `names.yml` | Name lists by origin, the `name_origins` rules that choose them, and UK street types | `generate.names.default_file` |
 | `ethnicity.json` | Ethnic groups, NHS ethnic category weights and displays, and main language by group | `generate.demographics.ethnicity_file` |
 | `immunization_schedule.json` | NHS England routine immunisation schedule, including historical changes | `generate.immunization_schedule` |
 | `vital_sign_snomed.json` | SNOMED CT observable entity codes added next to LOINC vital sign codes in FHIR R4 | `exporter.fhir.vital_sign_snomed_file` |
@@ -33,6 +33,23 @@ Synthea looks for each file in this order:
 
 When the country code is not a UK nation (for example `US`), Synthea uses the upstream US files.
 
+## Names
+
+`names.yml` holds name lists (`M`, `F` and `family`) for each name origin, such as `english`,
+`polish` or `indian`. Its `name_origins` section chooses a person's origin once, at birth:
+
+1. `by_language`: the person's main language, if listed. For example Polish speakers get Polish
+   names. English is not listed, so English speakers fall through to the next rule.
+2. `by_ethnic_category`: weights for the person's NHS ethnic category. For example category H
+   (Indian) gives Indian names 90% of the time and English names 10% of the time.
+3. `default`: weights used otherwise. In England this is `{english: 1}`.
+
+The origin is stored in the `name_origin` attribute and used for the person's, parents' and
+married names. Clinicians have no ethnic category, so only their language is used. Synthea checks
+at start-up that every origin named in `name_origins` has all three lists. A names file without a
+`name_origins` section (like the upstream US file before this change) uses a list named after the
+person's language if there is one, and `english` otherwise.
+
 ## Other UK nations
 
 `GB-WLS` (or `GB-CYM`), `GB-SCT` and `GB-NIR` stop with an error until they are implemented.
@@ -46,6 +63,8 @@ Wales, Scotland and Northern Ireland each differ from England in some of these w
 
 To add a nation:
 
-1. Create `geography/wales/` (or `scotland/`, `northern_ireland/`) with the same files.
+1. Create `geography/wales/` (or `scotland/`, `northern_ireland/`) with the same files. For
+   example, Wales could add a `welsh` name list with `by_language: {welsh: welsh}` and
+   `default: {english: 75, welsh: 25}`.
 2. Give the nation its folder and default region in `Nation`.
 3. Add any identifier generator it needs.

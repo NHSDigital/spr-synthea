@@ -721,8 +721,9 @@ public class Provider implements QuadTreeElement, Serializable {
       clinician.attributes.put(Person.ZIP, zip);
       clinician.attributes.put(Person.COORDINATE, coordinates);
 
-      String firstName = Names.fakeFirstName(gender, language, doc);
-      String lastName = Names.fakeLastName(language, doc);
+      String origin = Names.nameOrigin(language, null, doc);
+      String firstName = Names.fakeFirstName(gender, origin, doc);
+      String lastName = Names.fakeLastName(origin, doc);
       clinician.attributes.put(Clinician.FIRST_NAME, firstName);
       clinician.attributes.put(Clinician.LAST_NAME, lastName);
       clinician.attributes.put(Clinician.NAME, firstName + " " + lastName);
