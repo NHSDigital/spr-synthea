@@ -30,6 +30,41 @@ public enum Nation {
   public static final String COUNTRY_CODE_KEY = "generate.geography.country_code";
   public static final String DEFAULT_COUNTRY_CODE = "GB-ENG";
 
+  /**
+   * The nation and resource paths for one configuration version; see {@link #resolved()}.
+   */
+  private static final class Resolved {
+    final long configVersion;
+    final Nation nation;
+    final String[] paths = new String[Resource.values().length];
+
+    Resolved(long configVersion) {
+      this.configVersion = configVersion;
+      this.nation = fromCountryCode(configuredCode());
+      for (Resource resource : Resource.values()) {
+        paths[resource.ordinal()] = resource.path(nation);
+      }
+    }
+  }
+
+  private static volatile Resolved resolved;
+
+  /**
+   * The nation and resource paths for the current configuration. They are called for every
+   * person, so they are cached and recomputed only when the configuration changes (for example
+   * when a test switches nation with Config.set).
+   */
+  private static Resolved resolved() {
+    long version = Config.version();
+    Resolved current = resolved;
+    if (current == null || current.configVersion != version) {
+      // read the version first: a change while resolving makes the next call resolve again
+      current = new Resolved(version);
+      resolved = current;
+    }
+    return current;
+  }
+
   private final String code;
   private final String folder;
   private final String defaultState;
@@ -48,7 +83,7 @@ public enum Nation {
    * @throws IllegalStateException if the code names a nation that is not implemented yet.
    */
   public static Nation current() {
-    return fromCountryCode(Config.get(COUNTRY_CODE_KEY, DEFAULT_COUNTRY_CODE));
+    return resolved().nation;
   }
 
   /**
@@ -179,7 +214,7 @@ public enum Nation {
      * @return the path, or null if the nation has no such resource.
      */
     public String path() {
-      return path(current());
+      return resolved().paths[ordinal()];
     }
 
     /**

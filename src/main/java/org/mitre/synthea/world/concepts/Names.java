@@ -105,10 +105,14 @@ public class Names {
 
     private static boolean hasLists(SimpleYML names, String origin) {
       Object lists = names.get(origin);
-      return (lists instanceof Map<?, ?> map)
-        && map.get("M") instanceof List
-        && map.get("F") instanceof List
-        && map.get("family") instanceof List;
+      // Checkstyle 8.4 cannot parse pattern-matching instanceof, so cast explicitly
+      if (!(lists instanceof Map)) {
+        return false;
+      }
+      Map<?, ?> map = (Map<?, ?>) lists;
+      return map.get("M") instanceof List
+          && map.get("F") instanceof List
+          && map.get("family") instanceof List;
     }
 
     String pick(String language, String ethnicCategory, Person person) {
