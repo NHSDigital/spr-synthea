@@ -81,6 +81,7 @@ public class UkGeographyTest {
   @Test
   public void distributionsSumToOne() {
     for (Demographics d : demographics.row(REGION).values()) {
+      assertTrue(d.city + " flagged as UK demographics", d.uk);
       assertEquals(d.city + " ages", 1.0, sum(d.ages), 0.005);
       assertEquals(d.city + " gender", 1.0, sum(d.gender), 0.005);
       assertEquals(d.city + " race", 1.0, sum(d.race), 0.005);

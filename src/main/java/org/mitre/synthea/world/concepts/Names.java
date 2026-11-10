@@ -14,8 +14,16 @@ public class Names {
 
   private static SimpleYML names = loadNames();
 
+  /**
+   * Reload the names file named by the "generate.names.default_file" configuration setting.
+   * Intended for use after the configuration has been changed, e.g. in tests.
+   */
+  public static void reloadNames() {
+    names = loadNames();
+  }
+
   private static SimpleYML loadNames() {
-    String filename = "names.yml";
+    String filename = Config.get("generate.names.default_file", "names.yml");
     try {
       String namesData = Utilities.readResource(filename);
       return new SimpleYML(namesData);

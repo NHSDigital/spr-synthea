@@ -60,6 +60,11 @@ public class Demographics implements Comparable<Demographics>, Serializable {
 
   /** The percentage of the population that is of Hispanic ethnicity. */
   public double ethnicity;
+  /**
+   * True when these demographics were loaded from a UK (ONS) demographics file. UK data uses
+   * UK ethnic groups (including "mixed") and UK language distributions.
+   */
+  public boolean uk;
   /** Ethnicity distribution for the population */
   private RandomCollection<String> ethnicityDistribution;
 
@@ -170,6 +175,9 @@ public class Demographics implements Comparable<Demographics>, Serializable {
    */
   public String languageFromRaceAndEthnicity(String race, String ethnicity,
       RandomNumberGenerator random) {
+    if (uk) {
+      return ukLanguageFromEthnicGroup(race, random);
+    }
     if (ethnicity.equals("hispanic")) {
       RandomCollection<String> hispanicLanguageUsage = new RandomCollection<>();
       // https://factfinder.census.gov/faces/tableservices/jsf/pages/productview.xhtml?pid=ACS_17_5YR_B16006&prodType=table
@@ -261,6 +269,72 @@ public class Demographics implements Comparable<Demographics>, Serializable {
           return "english";
       }
     }
+  }
+
+  /**
+   * Selects a main language for a person in England based on their broad ethnic group.
+   * Proportions approximate the ONS Census 2021 main language tables for England (TS024 and
+   * main language by ethnic group): around 91% of residents have English as their main
+   * language, with Polish, Romanian, Panjabi, Urdu, Portuguese, Spanish, Arabic, Bengali and
+   * Gujarati the most common other main languages. Each language returned here must exist in
+   * language_lookup.json.
+   * @param race UK broad ethnic group: white, mixed, black, asian or other
+   * @param random the random number generator to use
+   * @return the language spoken
+   */
+  public static String ukLanguageFromEthnicGroup(String race, RandomNumberGenerator random) {
+    RandomCollection<String> usage = UK_LANGUAGE_USAGE.get(race);
+    if (usage == null) {
+      return "english";
+    }
+    return usage.next(random);
+  }
+
+  private static final Map<String, RandomCollection<String>> UK_LANGUAGE_USAGE =
+      createUkLanguageUsage();
+
+  private static Map<String, RandomCollection<String>> createUkLanguageUsage() {
+    Map<String, RandomCollection<String>> map = new HashMap<>();
+    RandomCollection<String> white = new RandomCollection<>();
+    white.add(0.940, "english");
+    white.add(0.025, "polish");
+    white.add(0.015, "romanian");
+    white.add(0.006, "portuguese");
+    white.add(0.004, "spanish");
+    white.add(0.004, "italian");
+    white.add(0.002, "russian");
+    white.add(0.002, "french");
+    white.add(0.002, "german");
+    map.put("white", white);
+    RandomCollection<String> mixed = new RandomCollection<>();
+    mixed.add(0.970, "english");
+    mixed.add(0.010, "spanish");
+    mixed.add(0.010, "portuguese");
+    mixed.add(0.010, "polish");
+    map.put("mixed", mixed);
+    RandomCollection<String> asian = new RandomCollection<>();
+    asian.add(0.800, "english");
+    asian.add(0.050, "urdu");
+    asian.add(0.050, "panjabi");
+    asian.add(0.040, "bengali");
+    asian.add(0.030, "gujarati");
+    asian.add(0.020, "chinese");
+    asian.add(0.010, "hindi");
+    map.put("asian", asian);
+    RandomCollection<String> black = new RandomCollection<>();
+    black.add(0.950, "english");
+    black.add(0.020, "somali");
+    black.add(0.020, "french");
+    black.add(0.010, "portuguese");
+    map.put("black", black);
+    RandomCollection<String> other = new RandomCollection<>();
+    other.add(0.820, "english");
+    other.add(0.100, "arabic");
+    other.add(0.030, "spanish");
+    other.add(0.030, "portuguese");
+    other.add(0.020, "french");
+    map.put("other", other);
+    return map;
   }
 
   /**
@@ -568,6 +642,7 @@ public class Demographics implements Comparable<Demographics>, Serializable {
     nonZeroDefaults(d.education);
 
     // the US Census Hispanic ethnicity has no equivalent in UK files
+    d.uk = ukFormat;
     d.ethnicity = ukFormat ? 0.0 : Double.parseDouble(line.get(CSV_ETHNICITY));
 
     return d;
