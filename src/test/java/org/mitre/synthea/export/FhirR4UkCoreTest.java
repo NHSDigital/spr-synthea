@@ -45,32 +45,24 @@ import org.mitre.synthea.world.agents.Provider;
 import org.mitre.synthea.world.concepts.HealthRecord;
 import org.mitre.synthea.world.concepts.HealthRecord.Code;
 import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
+import org.mitre.synthea.world.geography.EnglandTestConfig;
+import org.mitre.synthea.world.geography.NationalEthnicity;
 
 /**
  * Checks the UK Core flavoured FHIR R4 export of England (South West) patients.
  */
 public class FhirR4UkCoreTest {
-  private static final Map<String, String> savedConfig = new HashMap<>();
   private static boolean savedUsCore;
   private static boolean savedUkCore;
   private static boolean savedPhysiology;
   private static List<Person> people;
 
-  /** Switch to the main (UK) defaults and generate a few patients. */
+  /** Switch to England (GB-ENG) and generate a few patients. */
   @BeforeClass
   public static void generateUkPatients() throws Exception {
     TestHelper.loadTestProperties();
     TestHelper.exportOff();
-    Properties main = new Properties();
-    main.load(Config.class.getResourceAsStream("/synthea.properties"));
-    for (String key : main.stringPropertyNames()) {
-      if (key.startsWith("generate.geography.") || key.startsWith("generate.demographics.default")
-          || key.startsWith("generate.providers.") || key.startsWith("generate.payers.")
-          || key.startsWith("generate.names.")) {
-        savedConfig.put(key, Config.get(key));
-        Config.set(key, main.getProperty(key));
-      }
-    }
+    EnglandTestConfig.apply();
     savedUsCore = FhirR4.USE_US_CORE_IG;
     savedUkCore = FhirR4.USE_UK_CORE_IG;
     savedPhysiology = State.ENABLE_PHYSIOLOGY_STATE;
@@ -96,13 +88,7 @@ public class FhirR4UkCoreTest {
   /** Restore the US test configuration. */
   @AfterClass
   public static void restore() {
-    savedConfig.forEach((key, value) -> {
-      if (value == null) {
-        Config.remove(key);
-      } else {
-        Config.set(key, value);
-      }
-    });
+    EnglandTestConfig.restore();
     FhirR4.USE_US_CORE_IG = savedUsCore;
     FhirR4.USE_UK_CORE_IG = savedUkCore;
     State.ENABLE_PHYSIOLOGY_STATE = savedPhysiology;
@@ -143,7 +129,7 @@ public class FhirR4UkCoreTest {
       Extension ethnic = patient.getExtensionByUrl(FhirR4.UK_CORE_ETHNIC_CATEGORY);
       assertNotNull(ethnic);
       Coding coding = ((CodeableConcept) ethnic.getValue()).getCodingFirstRep();
-      assertEquals(FhirR4.UK_CORE_ETHNIC_CATEGORY_SYSTEM, coding.getSystem());
+      assertEquals(NationalEthnicity.current().getCategorySystem(), coding.getSystem());
       assertTrue(coding.getCode(), coding.getCode().matches("[A-HJ-NPRS]"));
       assertNotNull(coding.getDisplay());
       assertTrue("no US Core race extension", patient.getExtension().stream()

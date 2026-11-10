@@ -18,7 +18,7 @@ import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
 
 public class ImmunizationsTest {
-  private static final String UK_SCHEDULE = "immunization_schedule_uk.json";
+  private static final String UK_SCHEDULE = "geography/england/immunization_schedule.json";
   private static final String CVX = "http://hl7.org/fhir/sid/cvx";
 
   @After

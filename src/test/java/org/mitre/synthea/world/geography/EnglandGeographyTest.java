@@ -9,7 +9,6 @@ import com.google.common.collect.Table;
 
 import java.awt.geom.Point2D;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +25,7 @@ import org.mitre.synthea.world.agents.Person;
 /**
  * Checks the England (South West) geography data and that Location/Demographics load it.
  */
-public class UkGeographyTest {
+public class EnglandGeographyTest {
   private static final String REGION = "South West";
   /** Postcode areas in the South West region. */
   private static final Set<String> SOUTH_WEST_AREAS = new HashSet<>(Arrays.asList(
@@ -34,26 +33,15 @@ public class UkGeographyTest {
   /** UK outward code (postcode district), e.g. DT1, TA20, BS35. */
   private static final Pattern OUTWARD_CODE = Pattern.compile("^[A-Z]{1,2}[0-9][A-Z0-9]?$");
 
-  private static final Map<String, String> UK_CONFIG = new HashMap<>();
-  private static final Map<String, String> savedConfig = new HashMap<>();
   private static Location location;
   private static Table<String, String, Demographics> demographics;
 
-  static {
-    UK_CONFIG.put("generate.demographics.default_file", "geography/uk/demographics.csv");
-    UK_CONFIG.put("generate.geography.zipcodes.default_file", "geography/uk/postcodes.csv");
-    UK_CONFIG.put("generate.geography.sdoh.default_file", "geography/uk/sdoh.csv");
-    UK_CONFIG.put("generate.geography.timezones.default_file", "geography/uk/timezones.csv");
-    UK_CONFIG.put("generate.geography.country_code", "GB");
-  }
-
-  /** Switch the geography configuration to the UK data files. */
+  /** Switch to the England configuration, as in synthea.properties. */
   @BeforeClass
-  public static void useUkGeography() throws Exception {
-    for (Map.Entry<String, String> e : UK_CONFIG.entrySet()) {
-      savedConfig.put(e.getKey(), Config.get(e.getKey()));
-      Config.set(e.getKey(), e.getValue());
-    }
+  public static void useEngland() throws Exception {
+    EnglandTestConfig.apply();
+    assertEquals("geography/england/demographics.csv", Nation.Resource.DEMOGRAPHICS.path());
+    assertEquals("geography/england/postcodes.csv", Nation.Resource.POSTCODES.path());
     location = new Location(REGION, null);
     demographics = Demographics.load(REGION);
   }
@@ -61,13 +49,7 @@ public class UkGeographyTest {
   /** Restore the original geography configuration. */
   @AfterClass
   public static void restoreConfig() {
-    savedConfig.forEach((key, value) -> {
-      if (value == null) {
-        Config.remove(key);
-      } else {
-        Config.set(key, value);
-      }
-    });
+    EnglandTestConfig.restore();
   }
 
   @Test
@@ -81,7 +63,7 @@ public class UkGeographyTest {
   @Test
   public void distributionsSumToOne() {
     for (Demographics d : demographics.row(REGION).values()) {
-      assertTrue(d.city + " flagged as UK demographics", d.uk);
+      assertNotNull(d.city + " has the England ethnicity model", d.nationalEthnicity);
       assertEquals(d.city + " ages", 1.0, sum(d.ages), 0.005);
       assertEquals(d.city + " gender", 1.0, sum(d.gender), 0.005);
       assertEquals(d.city + " race", 1.0, sum(d.race), 0.005);
@@ -116,7 +98,7 @@ public class UkGeographyTest {
   }
 
   @Test
-  public void pickedDemographicsUseUkGroups() {
+  public void pickedDemographicsUseCensusGroups() {
     DefaultRandomNumberGenerator random = new DefaultRandomNumberGenerator(42L);
     Set<String> races = new HashSet<>();
     for (int i = 0; i < 2000; i++) {

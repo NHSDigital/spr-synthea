@@ -28,6 +28,7 @@ import org.mitre.synthea.world.agents.behaviors.planfinder.PlanFinderRandom;
 import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
 import org.mitre.synthea.world.concepts.healthinsurance.InsurancePlan;
 import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
 
 /**
  * A class that maintains and manages Payers.
@@ -94,7 +95,7 @@ public class PayerManager {
    */
   public static void loadPayers(Location location) {
     // Load the plan eligibility algorithms.
-    String eligibilitiesFile = Config.get("generate.payers.insurance_plans.eligibilities_file");
+    String eligibilitiesFile = Nation.Resource.PAYER_ELIGIBILITIES.path();
     PlanEligibilityFinder.buildPlanEligibilities(location.state, eligibilitiesFile);
 
     // Build the Plan Finder.
@@ -103,7 +104,7 @@ public class PayerManager {
         || !statesLoaded.contains(Location.getAbbreviation(location.state))
         || !statesLoaded.contains(Location.getStateName(location.state))) {
       try {
-        String payerFile = Config.get("generate.payers.insurance_companies.default_file");
+        String payerFile = Nation.Resource.PAYERS.path();
         loadPayers(location, payerFile);
 
         statesLoaded.add(location.state);
@@ -149,7 +150,7 @@ public class PayerManager {
   }
 
   private static void loadPlans() {
-    String fileName = Config.get("generate.payers.insurance_plans.default_file");
+    String fileName = Nation.Resource.PAYER_PLANS.path();
     Iterator<? extends Map<String, String>> csv = null;
     try {
       String resource = Utilities.readResource(fileName, true, true);

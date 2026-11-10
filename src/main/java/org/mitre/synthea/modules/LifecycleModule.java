@@ -39,6 +39,7 @@ import org.mitre.synthea.world.concepts.Names;
 import org.mitre.synthea.world.concepts.PediatricGrowthTrajectory;
 import org.mitre.synthea.world.concepts.VitalSign;
 import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
 
 /**
  * LifecycleModule is responsible for managing the lifecycle of a Person.
@@ -65,7 +66,7 @@ public final class LifecycleModule extends Module {
   /** Attribute key for a person's probability to follow doctor's orders and recommendations */
   public static final String ADHERENCE_PROBABILITY = "adherence probability";
 
-  private static final String COUNTRY_CODE = Config.get("generate.geography.country_code");
+  private static final String COUNTRY_CODE = Nation.isoCountryCode();
   private static final long NHS_NUMBER_SEED_SALT = 0x4E48534E554D4245L;
   private static final Double MIDDLE_NAME_PROBABILITY =
       Config.getAsDouble("generate.middle_names", 0.80);
@@ -197,7 +198,8 @@ public final class LifecycleModule extends Module {
         + ((person.randInt(9999 - 1000 + 1) + 1000));
     attributes.put(Person.IDENTIFIER_SSN, ssn);
 
-    if (attributes.get(Person.IDENTIFIER_NHS_NUMBER) == null) {
+    Nation nation = Nation.current();
+    if (nation.usesNhsNumbers() && attributes.get(Person.IDENTIFIER_NHS_NUMBER) == null) {
       // Use a dedicated RNG so NHS number allocation does not perturb the person's random stream
       RandomNumberGenerator nhsRandom =
           new DefaultRandomNumberGenerator(person.getSeed() ^ NHS_NUMBER_SEED_SALT);
@@ -205,7 +207,8 @@ public final class LifecycleModule extends Module {
           NhsNumberGenerator.getInstance().randomNhsNumber(nhsRandom));
     }
 
-    attributes.put(Person.COUNTRY, Config.get("generate.geography.country_code", "US"));
+    attributes.put(Person.COUNTRY, Nation.isoCountryCode());
+    attributes.put(Person.NATION, Nation.configuredCode());
 
     String city = (String) attributes.get(Person.CITY);
     Location location = (Location) attributes.get(Person.LOCATION);
@@ -1332,6 +1335,7 @@ public final class LifecycleModule extends Module {
     Attributes.inventory(attributes, m, Person.BIRTH_COUNTRY, false, true, COUNTRY_CODE);
     Attributes.inventory(attributes, m, Person.BIRTH_STATE, false, true, "Massachusetts");
     Attributes.inventory(attributes, m, Person.COUNTRY, false, true, COUNTRY_CODE);
+    Attributes.inventory(attributes, m, Person.NATION, false, true, "GB-ENG");
     Attributes.inventory(attributes, m, Person.BIRTHDATE, false, true, null);
     Attributes.inventory(attributes, m, Person.BIRTHPLACE, false, true, "Boston");
     Attributes.inventory(attributes, m, Person.ETHNICITY, false, true, null);

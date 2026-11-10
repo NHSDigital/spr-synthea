@@ -36,10 +36,10 @@ import org.mitre.synthea.world.geography.Location;
 import org.mockito.Mockito;
 
 /**
- * Tests for the NICE NG136 hypertension medication submodule used for UK populations.
+ * Tests for the NICE NG136 hypertension medication submodule used for England (GB-ENG) populations.
  */
-public class HypertensionMedicationUkTest {
-  private static final String SUBMODULE = "medications/hypertension_medication_uk";
+public class HypertensionMedicationEnglandTest {
+  private static final String SUBMODULE = "medications/hypertension_medication_england";
   private static final String RAMIPRIL = "198188";
   private static final String CANDESARTAN = "153823";
   private static final String AMLODIPINE = "197361";
@@ -59,7 +59,7 @@ public class HypertensionMedicationUkTest {
     person = new Person(0L);
     person.attributes.put(Person.GENDER, "M");
     person.attributes.put(Person.RACE, "white");
-    person.attributes.put(Person.COUNTRY, "GB");
+    person.attributes.put(Person.NATION, "GB-ENG");
     person.history = new LinkedList<>();
     Provider mock = Mockito.mock(Provider.class, withSettings().serializable());
     Mockito.when(mock.getResourceID()).thenReturn("Mock-UUID");
@@ -207,20 +207,20 @@ public class HypertensionMedicationUkTest {
   }
 
   @Test
-  public void hypertensionModuleRoutesByCountry() {
+  public void hypertensionModuleRoutesByNation() {
     Module hypertension = Module.getModuleByPath("hypertension");
     for (String name : List.of("Prescribe_Medication", "Prescribe_Medication_2",
         "Prescribe_Medication_3")) {
       State router = hypertension.getState(name);
-      State uk = hypertension.getState(name + "_UK");
+      State england = hypertension.getState(name + "_England");
       State us = hypertension.getState(name + "_US");
       assertNotNull(router);
-      assertTrue(uk instanceof State.CallSubmodule);
+      assertTrue(england instanceof State.CallSubmodule);
       assertTrue(us instanceof State.CallSubmodule);
 
-      person.attributes.put(Person.COUNTRY, "GB");
-      assertEquals(name + "_UK", router.transition(person, time));
-      person.attributes.put(Person.COUNTRY, "US");
+      person.attributes.put(Person.NATION, "GB-ENG");
+      assertEquals(name + "_England", router.transition(person, time));
+      person.attributes.put(Person.NATION, "US");
       assertEquals(name + "_US", router.transition(person, time));
     }
   }

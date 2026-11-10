@@ -1,5 +1,5 @@
 {
-  "name": "Hypertension Medication (UK, NICE NG136)",
+  "name": "Hypertension Medication (England, NICE NG136)",
   "remarks": [
     "Antihypertensive drug treatment following NICE guideline NG136 (Hypertension in adults: diagnosis and management), https://www.nice.org.uk/guidance/ng136.",
     "Called from the hypertension module when the person's country attribute is GB. Mirrors the contract of medications/hypertension_medication: sets hypertension_severe on first call and increments hypertension_medication_step on every call.",

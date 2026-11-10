@@ -1,6 +1,7 @@
 # England (South West) provider data
 
-These files are the default providers in `synthea.properties`. They are curated from the provider
+These are the providers for England (`generate.geography.country_code = GB-ENG`, the default
+in `synthea.properties`); see `../README.md`. They are curated from the provider
 files in the [NHSDigital/swpc_synthea-spr-poc](https://github.com/NHSDigital/swpc_synthea-spr-poc)
 fork. Those files hold NHS sites in the South West region.
 
@@ -37,5 +38,5 @@ The SWPC hospital data only covers trusts in Devon, Dorset, Gloucestershire and 
 Cornwall, Bristol and Wiltshire therefore travel to the nearest hospital in those counties. Primary
 and urgent care cover the whole region.
 
-US-only provider types (VA, IHS, nursing, hospice, home health) are disabled by leaving their file
-settings empty.
+US-only provider types (VA, IHS, nursing, hospice, home health) have no file in this folder, so they
+are not used.

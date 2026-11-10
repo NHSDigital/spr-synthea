@@ -26,50 +26,41 @@ import org.mitre.synthea.world.agents.Provider.ProviderType;
 import org.mitre.synthea.world.concepts.ClinicianSpecialty;
 import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
 import org.mitre.synthea.world.concepts.healthinsurance.InsurancePlan;
+import org.mitre.synthea.world.geography.EnglandTestConfig;
 import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
 
 /**
  * Checks the England (South West) provider and NHS payer data, loaded with the main (UK)
  * synthea.properties defaults rather than the US test overrides.
  */
-public class UkProvidersTest {
+public class EnglandProvidersTest {
   private static final String REGION = "South West";
   /** Full UK postcode, e.g. "EX2 5DW" or "BS1 3NU". */
   private static final Pattern POSTCODE =
       Pattern.compile("^[A-Z]{1,2}[0-9][A-Z0-9]? [0-9][A-Z]{2}$");
 
-  private static final Map<String, String> savedConfig = new HashMap<>();
   private static Location location;
   private static final DefaultRandomNumberGenerator random = new DefaultRandomNumberGenerator(1L);
 
-  /** Apply the main synthea.properties geography, names, provider and payer settings. */
+  /** Apply the England configuration from synthea.properties. */
   @BeforeClass
-  public static void useUkDefaults() throws Exception {
+  public static void useEngland() throws Exception {
     Properties main = new Properties();
     main.load(Config.class.getResourceAsStream("/synthea.properties"));
-    for (String key : main.stringPropertyNames()) {
-      if (key.startsWith("generate.geography.") || key.startsWith("generate.demographics.default")
-          || key.startsWith("generate.providers.") || key.startsWith("generate.payers.")
-          || key.startsWith("generate.names.")) {
-        savedConfig.put(key, Config.get(key));
-        Config.set(key, main.getProperty(key));
-      }
-    }
-    assertEquals("GB", Config.get("generate.geography.country_code"));
-    assertEquals(REGION, Config.get("generate.geography.default_state"));
+    assertEquals("GB-ENG", main.getProperty(Nation.COUNTRY_CODE_KEY));
+    EnglandTestConfig.apply();
+    assertEquals(Nation.ENGLAND, Nation.current());
+    assertEquals(REGION, Nation.defaultState());
+    assertEquals("geography/england/providers/hospitals.csv",
+        Nation.Resource.HOSPITALS.path());
     location = new Location(REGION, null);
   }
 
   /** Restore the US test configuration. */
   @AfterClass
   public static void restoreConfig() {
-    for (Map.Entry<String, String> e : savedConfig.entrySet()) {
-      if (e.getValue() == null) {
-        Config.remove(e.getKey());
-      } else {
-        Config.set(e.getKey(), e.getValue());
-      }
-    }
+    EnglandTestConfig.restore();
     Provider.clear();
     PayerManager.clear();
   }
@@ -144,7 +135,7 @@ public class UkProvidersTest {
   @Test
   public void missingGeneralPracticeColumnStillGetsAGp() throws IOException {
     // providers file with specialties but no GENERAL PRACTICE column (previously threw an NPE)
-    Provider.loadProviders(location, "uk_providers_no_gp_column.csv", ProviderType.HOSPITAL,
+    Provider.loadProviders(location, "england_providers_no_gp_column.csv", ProviderType.HOSPITAL,
         Collections.singleton(EncounterType.INPATIENT), random, false);
     List<Provider> loaded = Provider.getProviderList();
     assertEquals(1, loaded.size());

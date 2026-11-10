@@ -126,7 +126,7 @@ public class Location implements Serializable {
 
     String filename = null;
     try {
-      filename = Config.get("generate.geography.zipcodes.default_file");
+      filename = Nation.Resource.POSTCODES.path();
       String csv = Utilities.readResource(filename, true, true);
       List<? extends Map<String,String>> ziplist = SimpleCSV.parse(csv);
 
@@ -151,8 +151,7 @@ public class Location implements Serializable {
 
     socialDeterminantsOfHealth = new HashMap<String, Map<String, Double>>();
     try {
-      filename = Config.get("generate.geography.sdoh.default_file",
-        "geography/sdoh.csv");
+      filename = Nation.Resource.SDOH.path();
       String csv = Utilities.readResource(filename, true, true);
       List<? extends Map<String,String>> sdohList = SimpleCSV.parse(csv);
 
@@ -323,7 +322,7 @@ public class Location implements Serializable {
     String[] birthPlace = new String[4];
     birthPlace[0] = randomCityName(random);
     birthPlace[1] = this.state;
-    birthPlace[2] = Config.get("generate.geography.country_code");
+    birthPlace[2] = Nation.isoCountryCode();
     birthPlace[3] = birthPlace[0] + ", " + birthPlace[1] + ", " + birthPlace[2];
     return birthPlace;
   }
@@ -446,7 +445,7 @@ public class Location implements Serializable {
   }
 
   private static LinkedHashMap<String, String> stateAbbreviations() {
-    String filename = Config.get("generate.geography.zipcodes.default_file", "");
+    String filename = Nation.Resource.POSTCODES.path();
     return STATE_ABBREVIATIONS.computeIfAbsent(filename, Location::loadAbbreviations);
   }
 
@@ -566,7 +565,7 @@ public class Location implements Serializable {
    * @return The full name of the timezone (e.g. "Eastern Standard Time")
    */
   public static String getTimezoneByState(String state) {
-    String filename = Config.get("generate.geography.timezones.default_file", "");
+    String filename = Nation.Resource.TIMEZONES.path();
     return TIMEZONES.computeIfAbsent(filename, Location::loadTimezones).get(state);
   }
 

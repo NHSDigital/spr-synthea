@@ -7,6 +7,7 @@ import com.google.common.collect.Table;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.awt.geom.Point2D;
 import java.io.IOException;
@@ -164,6 +165,8 @@ import org.mitre.synthea.world.concepts.HealthRecord.Observation;
 import org.mitre.synthea.world.concepts.HealthRecord.Procedure;
 import org.mitre.synthea.world.concepts.HealthRecord.Report;
 import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
+import org.mitre.synthea.world.geography.NationalEthnicity;
 
 public class FhirR4 {
   // HAPI FHIR warns that the context creation is expensive, and should be performed
@@ -201,47 +204,8 @@ public class FhirR4 {
       "https://fhir.hl7.org.uk/CodeSystem/UKCore-NHSNumberVerificationStatusEngland";
   protected static final String UK_CORE_ETHNIC_CATEGORY =
       "https://fhir.hl7.org.uk/StructureDefinition/Extension-UKCore-EthnicCategory";
-  protected static final String UK_CORE_ETHNIC_CATEGORY_SYSTEM =
-      "https://fhir.hl7.org.uk/CodeSystem/UKCore-EthnicCategoryEngland";
-  private static final Map<String, String> UK_ETHNIC_CATEGORY_DISPLAY = Map.ofEntries(
-      Map.entry("A", "White - British"),
-      Map.entry("B", "White - Irish"),
-      Map.entry("C", "White - Any other White background"),
-      Map.entry("D", "Mixed - White and Black Caribbean"),
-      Map.entry("E", "Mixed - White and Black African"),
-      Map.entry("F", "Mixed - White and Asian"),
-      Map.entry("G", "Mixed - Any other mixed background"),
-      Map.entry("H", "Asian or Asian British - Indian"),
-      Map.entry("J", "Asian or Asian British - Pakistani"),
-      Map.entry("K", "Asian or Asian British - Bangladeshi"),
-      Map.entry("L", "Asian or Asian British - Any other Asian background"),
-      Map.entry("M", "Black or Black British - Caribbean"),
-      Map.entry("N", "Black or Black British - African"),
-      Map.entry("P", "Black or Black British - Any other Black background"),
-      Map.entry("R", "Other Ethnic Groups - Chinese"),
-      Map.entry("S", "Other Ethnic Groups - Any other ethnic group"),
-      Map.entry("Z", "Not stated"),
-      Map.entry("99", "Not known"));
-
-  /**
-   * SNOMED CT observable entities for common LOINC vital signs. UK Core binds Observation.code
-   * (preferred) to SNOMED observables, so in UK Core mode these are added alongside the LOINC
-   * coding, which is kept for interoperability and the FHIR vital signs profile.
-   */
-  private static final Map<String, Code> UK_VITAL_SIGN_SNOMED = Map.ofEntries(
-      Map.entry("8302-2", new Code(SNOMED_URI, "1153637007", "Body height")),
-      Map.entry("29463-7", new Code(SNOMED_URI, "27113001", "Body weight")),
-      Map.entry("39156-5", new Code(SNOMED_URI, "60621009", "Body mass index")),
-      Map.entry("85354-9", new Code(SNOMED_URI, "75367002", "Blood pressure")),
-      Map.entry("8480-6", new Code(SNOMED_URI, "271649006", "Systolic blood pressure")),
-      Map.entry("8462-4", new Code(SNOMED_URI, "271650006", "Diastolic blood pressure")),
-      Map.entry("8867-4", new Code(SNOMED_URI, "364075005", "Heart rate")),
-      Map.entry("9279-1", new Code(SNOMED_URI, "86290005", "Respiratory rate")),
-      Map.entry("8310-5", new Code(SNOMED_URI, "386725007", "Body temperature")),
-      Map.entry("2708-6", new Code(SNOMED_URI, "103228002",
-          "Hemoglobin saturation with oxygen")),
-      Map.entry("59408-5", new Code(SNOMED_URI, "103228002",
-          "Hemoglobin saturation with oxygen")));
+  private static final Map<String, Map<String, Code>> VITAL_SIGN_SNOMED_CACHE =
+      new java.util.concurrent.ConcurrentHashMap<>();
 
   protected static String US_CORE_VERSION =
       Config.get("exporter.fhir.us_core_version", "6.1.0");
@@ -298,11 +262,11 @@ public class FhirR4 {
   }
 
   private static String countryCode() {
-    return Config.get("generate.geography.country_code");
+    return Nation.isoCountryCode();
   }
 
   private static String passportUri() {
-    return Config.get("generate.geography.passport_uri", "http://hl7.org/fhir/sid/passport-USA");
+    return Nation.passportUri();
   }
 
   private static final HashSet<Class<? extends Resource>> includedResources = new HashSet<>();
@@ -853,11 +817,12 @@ public class FhirR4 {
     }
 
     String ethnicCategory = (String) person.attributes.get(Person.ETHNIC_CATEGORY);
-    if (USE_UK_CORE_IG && ethnicCategory != null) {
+    NationalEthnicity nationalEthnicity = NationalEthnicity.current();
+    if (USE_UK_CORE_IG && ethnicCategory != null && nationalEthnicity != null) {
       CodeableConcept category = new CodeableConcept().addCoding(new Coding()
-          .setSystem(UK_CORE_ETHNIC_CATEGORY_SYSTEM)
+          .setSystem(nationalEthnicity.getCategorySystem())
           .setCode(ethnicCategory)
-          .setDisplay(UK_ETHNIC_CATEGORY_DISPLAY.get(ethnicCategory)));
+          .setDisplay(nationalEthnicity.getCategoryDisplay(ethnicCategory)));
       patientResource.addExtension(new Extension(UK_CORE_ETHNIC_CATEGORY, category));
     }
 
@@ -1984,13 +1949,43 @@ public class FhirR4 {
 
 
   /**
+   * The configured nation's LOINC vital sign to SNOMED CT observable entity mappings, from its
+   * vital_sign_snomed.json (see Nation.Resource.VITAL_SIGN_SNOMED). UK Core binds
+   * Observation.code (preferred) to SNOMED CT, so these are added alongside the LOINC coding,
+   * which is kept for interoperability and the FHIR vital signs profile.
+   * @return map of LOINC code to SNOMED CT code; empty if the nation has no mappings.
+   */
+  protected static Map<String, Code> vitalSignSnomed() {
+    String path = Nation.Resource.VITAL_SIGN_SNOMED.path();
+    if (path == null) {
+      return Collections.emptyMap();
+    }
+    return VITAL_SIGN_SNOMED_CACHE.computeIfAbsent(path, p -> {
+      try {
+        JsonObject json = JsonParser.parseString(Utilities.readResource(p, true, true))
+            .getAsJsonObject().getAsJsonObject("loinc_to_snomed");
+        Map<String, Code> map = new HashMap<>();
+        for (Map.Entry<String, JsonElement> e : json.entrySet()) {
+          JsonObject snomed = e.getValue().getAsJsonObject();
+          map.put(e.getKey(), new Code(SNOMED_URI, snomed.get("code").getAsString(),
+              snomed.get("display").getAsString()));
+        }
+        return map;
+      } catch (IOException e) {
+        throw new IllegalStateException("Unable to load vital sign SNOMED CT codes " + p, e);
+      }
+    });
+  }
+
+  /**
    * Add the SNOMED CT observable entity equivalent of a LOINC vital sign code, if known.
    * @param concept the CodeableConcept to extend.
    */
-  protected static void addUkSnomedCoding(CodeableConcept concept) {
+  protected static void addSnomedVitalSignCoding(CodeableConcept concept) {
+    Map<String, Code> vitalSignSnomed = vitalSignSnomed();
     for (Coding coding : new ArrayList<>(concept.getCoding())) {
       Code snomed = LOINC_URI.equals(coding.getSystem())
-          ? UK_VITAL_SIGN_SNOMED.get(coding.getCode()) : null;
+          ? vitalSignSnomed.get(coding.getCode()) : null;
       if (snomed != null && concept.getCoding().stream().noneMatch(
           c -> SNOMED_URI.equals(c.getSystem()) && snomed.code.equals(c.getCode()))) {
         concept.addCoding(new Coding(SNOMED_URI, snomed.code, snomed.display));
@@ -2032,7 +2027,7 @@ public class FhirR4 {
       }
     }
     if (USE_UK_CORE_IG) {
-      addUkSnomedCoding(observationResource.getCode());
+      addSnomedVitalSignCoding(observationResource.getCode());
     }
 
     // map the code to the official display, ex "vital-signs" --> "Vital Signs"
@@ -2056,7 +2051,7 @@ public class FhirR4 {
         ObservationComponentComponent comp = new ObservationComponentComponent();
         comp.setCode(mapCodeToCodeableConcept(subObs.codes.get(0), LOINC_URI));
         if (USE_UK_CORE_IG) {
-          addUkSnomedCoding(comp.getCode());
+          addSnomedVitalSignCoding(comp.getCode());
         }
         Type value = mapValueToFHIRType(subObs.value, subObs.unit);
         comp.setValue(value);

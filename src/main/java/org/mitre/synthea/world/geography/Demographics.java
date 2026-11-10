@@ -61,10 +61,10 @@ public class Demographics implements Comparable<Demographics>, Serializable {
   /** The percentage of the population that is of Hispanic ethnicity. */
   public double ethnicity;
   /**
-   * True when these demographics were loaded from a UK (ONS) demographics file. UK data uses
-   * UK ethnic groups (including "mixed") and UK language distributions.
+   * The nation's ethnicity model (ethnic groups, national ethnic categories and main languages),
+   * or null for upstream US Census race and Hispanic ethnicity. See {@link Nation}.
    */
-  public boolean uk;
+  public NationalEthnicity nationalEthnicity;
   /** Ethnicity distribution for the population */
   private RandomCollection<String> ethnicityDistribution;
 
@@ -175,8 +175,8 @@ public class Demographics implements Comparable<Demographics>, Serializable {
    */
   public String languageFromRaceAndEthnicity(String race, String ethnicity,
       RandomNumberGenerator random) {
-    if (uk) {
-      return ukLanguageFromEthnicGroup(race, random);
+    if (nationalEthnicity != null) {
+      return nationalEthnicity.pickMainLanguage(race, random);
     }
     if (ethnicity.equals("hispanic")) {
       RandomCollection<String> hispanicLanguageUsage = new RandomCollection<>();
@@ -269,129 +269,6 @@ public class Demographics implements Comparable<Demographics>, Serializable {
           return "english";
       }
     }
-  }
-
-  /**
-   * Selects a main language for a person in England based on their broad ethnic group.
-   * Proportions approximate the ONS Census 2021 main language tables for England (TS024 and
-   * main language by ethnic group): around 91% of residents have English as their main
-   * language, with Polish, Romanian, Panjabi, Urdu, Portuguese, Spanish, Arabic, Bengali and
-   * Gujarati the most common other main languages. Each language returned here must exist in
-   * language_lookup.json.
-   * @param race UK broad ethnic group: white, mixed, black, asian or other
-   * @param random the random number generator to use
-   * @return the language spoken
-   */
-  public static String ukLanguageFromEthnicGroup(String race, RandomNumberGenerator random) {
-    RandomCollection<String> usage = UK_LANGUAGE_USAGE.get(race);
-    if (usage == null) {
-      return "english";
-    }
-    return usage.next(random);
-  }
-
-  private static final Map<String, RandomCollection<String>> UK_LANGUAGE_USAGE =
-      createUkLanguageUsage();
-
-  /**
-   * Selects an NHS Data Dictionary ethnic category (the 2001 census categories used by the UK
-   * Core EthnicCategory extension) within a broad ethnic group. Weights follow the ONS Census
-   * 2021 England ethnic group proportions (TS021) mapped onto the 2001 categories: Gypsy, Irish
-   * Traveller and Roma are counted as "Any other White background", Chinese as R, and Arab as S.
-   * White people whose main language is not English are assigned "Any other White background".
-   * @param race UK broad ethnic group: white, mixed, black, asian or other
-   * @param language the person's main language
-   * @param random the random number generator to use
-   * @return the ethnic category code, e.g. "A"
-   */
-  public static String ukEthnicCategory(String race, String language,
-      RandomNumberGenerator random) {
-    if ("white".equals(race) && !"english".equals(language)) {
-      return "C";
-    }
-    RandomCollection<String> categories = UK_ETHNIC_CATEGORIES.get(race);
-    if (categories == null) {
-      return "S";
-    }
-    return categories.next(random);
-  }
-
-  private static final Map<String, RandomCollection<String>> UK_ETHNIC_CATEGORIES =
-      createUkEthnicCategories();
-
-  private static Map<String, RandomCollection<String>> createUkEthnicCategories() {
-    Map<String, RandomCollection<String>> map = new HashMap<>();
-    RandomCollection<String> white = new RandomCollection<>();
-    white.add(73.5, "A");
-    white.add(0.9, "B");
-    white.add(6.6, "C");
-    map.put("white", white);
-    RandomCollection<String> mixed = new RandomCollection<>();
-    mixed.add(1.0, "D");
-    mixed.add(0.5, "E");
-    mixed.add(0.8, "F");
-    mixed.add(0.7, "G");
-    map.put("mixed", mixed);
-    RandomCollection<String> asian = new RandomCollection<>();
-    asian.add(3.3, "H");
-    asian.add(2.7, "J");
-    asian.add(1.1, "K");
-    asian.add(1.6, "L");
-    asian.add(0.7, "R");
-    map.put("asian", asian);
-    RandomCollection<String> black = new RandomCollection<>();
-    black.add(1.1, "M");
-    black.add(2.5, "N");
-    black.add(0.5, "P");
-    map.put("black", black);
-    RandomCollection<String> other = new RandomCollection<>();
-    other.add(1.0, "S");
-    map.put("other", other);
-    return map;
-  }
-
-  private static Map<String, RandomCollection<String>> createUkLanguageUsage() {
-    Map<String, RandomCollection<String>> map = new HashMap<>();
-    RandomCollection<String> white = new RandomCollection<>();
-    white.add(0.940, "english");
-    white.add(0.025, "polish");
-    white.add(0.015, "romanian");
-    white.add(0.006, "portuguese");
-    white.add(0.004, "spanish");
-    white.add(0.004, "italian");
-    white.add(0.002, "russian");
-    white.add(0.002, "french");
-    white.add(0.002, "german");
-    map.put("white", white);
-    RandomCollection<String> mixed = new RandomCollection<>();
-    mixed.add(0.970, "english");
-    mixed.add(0.010, "spanish");
-    mixed.add(0.010, "portuguese");
-    mixed.add(0.010, "polish");
-    map.put("mixed", mixed);
-    RandomCollection<String> asian = new RandomCollection<>();
-    asian.add(0.800, "english");
-    asian.add(0.050, "urdu");
-    asian.add(0.050, "panjabi");
-    asian.add(0.040, "bengali");
-    asian.add(0.030, "gujarati");
-    asian.add(0.020, "chinese");
-    asian.add(0.010, "hindi");
-    map.put("asian", asian);
-    RandomCollection<String> black = new RandomCollection<>();
-    black.add(0.950, "english");
-    black.add(0.020, "somali");
-    black.add(0.020, "french");
-    black.add(0.010, "portuguese");
-    map.put("black", black);
-    RandomCollection<String> other = new RandomCollection<>();
-    other.add(0.820, "english");
-    other.add(0.100, "arabic");
-    other.add(0.030, "spanish");
-    other.add(0.030, "portuguese");
-    other.add(0.020, "french");
-    map.put("other", other);
-    return map;
   }
 
   /**
@@ -562,7 +439,8 @@ public class Demographics implements Comparable<Demographics>, Serializable {
    */
   public static Table<String, String, Demographics> load(String state)
       throws IOException {
-    String filename = Config.get("generate.demographics.default_file");
+    String filename = Nation.Resource.DEMOGRAPHICS.path();
+    NationalEthnicity ethnicity = NationalEthnicity.current();
     String csv = Utilities.readResource(filename, true, true);
 
     List<? extends Map<String,String>> demographicsCsv = SimpleCSV.parse(csv);
@@ -575,7 +453,7 @@ public class Demographics implements Comparable<Demographics>, Serializable {
 
       // for now, only allow one state at a time
       if (state != null && state.equalsIgnoreCase(currState)) {
-        Demographics parsed = csvLineToDemographics(demographicsLine);
+        Demographics parsed = csvLineToDemographics(demographicsLine, ethnicity);
 
         table.put(currState, currCityId, parsed);
       }
@@ -596,13 +474,6 @@ public class Demographics implements Comparable<Demographics>, Serializable {
   private static final List<String> CSV_RACES = Arrays.asList(
       "WHITE", "BLACK", "ASIAN", "NATIVE", "OTHER");
 
-  /**
-   * Race columns used by UK (England) demographics files, which follow the ONS census
-   * high-level ethnic groups instead of the US Census race categories.
-   */
-  private static final List<String> CSV_UK_RACES = Arrays.asList(
-      "WHITE", "MIXED", "BLACK", "ASIAN", "OTHER");
-
   private static final List<String> CSV_INCOMES = Arrays.asList(
       "00..10", "10..15", "15..25", "25..35", "35..50",
       "50..75", "75..100", "100..150", "150..200", "200..999");
@@ -616,9 +487,11 @@ public class Demographics implements Comparable<Demographics>, Serializable {
    * Map a single line of the demographics CSV file into a Demographics object.
    *
    * @param line a line representing one city, parsed via SimpleCSV
+   * @param ethnicity the nation's ethnicity model, or null for upstream US Census columns
    * @return the Demographics object for that city
    */
-  private static Demographics csvLineToDemographics(Map<String,String> line) {
+  private static Demographics csvLineToDemographics(Map<String,String> line,
+      NationalEthnicity ethnicity) {
     Demographics d = new Demographics();
 
     d.population = Double.valueOf(line.get("POPESTIMATE2015")).longValue();
@@ -645,16 +518,23 @@ public class Demographics implements Comparable<Demographics>, Serializable {
     d.gender.put("female", Double.parseDouble(line.get("TOT_FEMALE")));
     nonZeroDefaults(d.gender);
 
-    // UK files have a MIXED group and no HISPANIC (ethnicity) or NATIVE columns
-    boolean ukFormat = line.containsKey("MIXED") && !line.containsKey(CSV_ETHNICITY);
+    // The configured nation decides the ethnic group columns; there is no format sniffing.
+    d.nationalEthnicity = ethnicity;
+    boolean national = ethnicity != null;
     double percentageTotal = 0;
     d.race = new HashMap<String, Double>();
-    for (String race : ukFormat ? CSV_UK_RACES : CSV_RACES) {
-      double percentage = Double.parseDouble(line.get(race));
+    for (String race : national ? ethnicity.getGroups() : CSV_RACES) {
+      String value = line.get(race);
+      if (value == null) {
+        throw new IllegalArgumentException("Demographics for " + d.city + " have no " + race
+            + " column, which " + Nation.configuredCode() + " requires (see "
+            + Nation.COUNTRY_CODE_KEY + ")");
+      }
+      double percentage = Double.parseDouble(value);
       d.race.put(race.toLowerCase(), percentage);
       percentageTotal += percentage;
     }
-    if (ukFormat) {
+    if (national) {
       // Any unaccounted-for remainder is treated as "other"
       if (percentageTotal < 1.0) {
         d.race.put("other", d.race.get("other") + (1.0 - percentageTotal));
@@ -698,9 +578,8 @@ public class Demographics implements Comparable<Demographics>, Serializable {
     }
     nonZeroDefaults(d.education);
 
-    // the US Census Hispanic ethnicity has no equivalent in UK files
-    d.uk = ukFormat;
-    d.ethnicity = ukFormat ? 0.0 : Double.parseDouble(line.get(CSV_ETHNICITY));
+    // the US Census Hispanic ethnicity has no equivalent in national (UK) files
+    d.ethnicity = national ? 0.0 : Double.parseDouble(line.get(CSV_ETHNICITY));
 
     return d;
   }

@@ -17,6 +17,7 @@ import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
 import org.mitre.synthea.world.concepts.HealthRecord;
 import org.mitre.synthea.world.concepts.HealthRecord.Code;
+import org.mitre.synthea.world.geography.Nation;
 
 /**
  * This is a complete, but fairly simplistic approach to synthesizing immunizations. It is encounter
@@ -50,7 +51,7 @@ public class Immunizations {
    */
   @SuppressWarnings("rawtypes")
   public static synchronized Map<String, Map> getSchedule() {
-    String filename = Config.get(SCHEDULE_CONFIG, DEFAULT_SCHEDULE);
+    String filename = Nation.Resource.IMMUNIZATION_SCHEDULE.path();
     if (loadedSchedule == null || !filename.equals(loadedScheduleFile)) {
       loadedSchedule = loadImmunizationSchedule(filename);
       loadedScheduleFile = filename;

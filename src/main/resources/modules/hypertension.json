@@ -585,12 +585,12 @@
       "type": "Simple",
       "conditional_transition": [
         {
-          "transition": "Prescribe_Medication_3_UK",
+          "transition": "Prescribe_Medication_3_England",
           "condition": {
             "condition_type": "Attribute",
-            "attribute": "country",
+            "attribute": "nation",
             "operator": "==",
-            "value": "GB"
+            "value": "GB-ENG"
           }
         },
         {
@@ -598,19 +598,19 @@
         }
       ],
       "remarks": [
-        "Select country-specific prescribing guidance: NICE NG136 when the simulation country is GB."
+        "Select nation-specific prescribing guidance: NICE NG136 when the simulation nation is England (GB-ENG)."
       ]
     },
     "Prescribe_Medication_2": {
       "type": "Simple",
       "conditional_transition": [
         {
-          "transition": "Prescribe_Medication_2_UK",
+          "transition": "Prescribe_Medication_2_England",
           "condition": {
             "condition_type": "Attribute",
-            "attribute": "country",
+            "attribute": "nation",
             "operator": "==",
-            "value": "GB"
+            "value": "GB-ENG"
           }
         },
         {
@@ -618,19 +618,19 @@
         }
       ],
       "remarks": [
-        "Select country-specific prescribing guidance: NICE NG136 when the simulation country is GB."
+        "Select nation-specific prescribing guidance: NICE NG136 when the simulation nation is England (GB-ENG)."
       ]
     },
     "Prescribe_Medication": {
       "type": "Simple",
       "conditional_transition": [
         {
-          "transition": "Prescribe_Medication_UK",
+          "transition": "Prescribe_Medication_England",
           "condition": {
             "condition_type": "Attribute",
-            "attribute": "country",
+            "attribute": "nation",
             "operator": "==",
-            "value": "GB"
+            "value": "GB-ENG"
           }
         },
         {
@@ -638,7 +638,7 @@
         }
       ],
       "remarks": [
-        "Select country-specific prescribing guidance: NICE NG136 when the simulation country is GB."
+        "Select nation-specific prescribing guidance: NICE NG136 when the simulation nation is England (GB-ENG)."
       ]
     },
     "Terminal": {
@@ -981,9 +981,9 @@
       "submodule": "medications/hypertension_medication",
       "direct_transition": "End_Wellness_Encounter"
     },
-    "Prescribe_Medication_UK": {
+    "Prescribe_Medication_England": {
       "type": "CallSubmodule",
-      "submodule": "medications/hypertension_medication_uk",
+      "submodule": "medications/hypertension_medication_england",
       "direct_transition": "End_Wellness_Encounter"
     },
     "Prescribe_Medication_2_US": {
@@ -991,9 +991,9 @@
       "submodule": "medications/hypertension_medication",
       "direct_transition": "End_Hypertension_Followup_Encounter"
     },
-    "Prescribe_Medication_2_UK": {
+    "Prescribe_Medication_2_England": {
       "type": "CallSubmodule",
-      "submodule": "medications/hypertension_medication_uk",
+      "submodule": "medications/hypertension_medication_england",
       "direct_transition": "End_Hypertension_Followup_Encounter"
     },
     "Prescribe_Medication_3_US": {
@@ -1001,9 +1001,9 @@
       "submodule": "medications/hypertension_medication",
       "direct_transition": "End_Hypertension_Followup_Encounter_2"
     },
-    "Prescribe_Medication_3_UK": {
+    "Prescribe_Medication_3_England": {
       "type": "CallSubmodule",
-      "submodule": "medications/hypertension_medication_uk",
+      "submodule": "medications/hypertension_medication_england",
       "direct_transition": "End_Hypertension_Followup_Encounter_2"
     }
   },

@@ -17,36 +17,39 @@ import java.util.Set;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.DefaultRandomNumberGenerator;
 import org.mitre.synthea.helpers.SimpleYML;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
 import org.mitre.synthea.world.geography.Demographics;
+import org.mitre.synthea.world.geography.EnglandTestConfig;
+import org.mitre.synthea.world.geography.Nation;
+import org.mitre.synthea.world.geography.NationalEthnicity;
 
 /**
  * Checks the England name lists and the UK ethnic group and main language handling.
  */
-public class UkNamesAndLanguagesTest {
-  private static final String NAMES_KEY = "generate.names.default_file";
+public class EnglandNamesAndLanguagesTest {
   private static final List<String> UK_GROUPS =
       Arrays.asList("white", "mixed", "asian", "black", "other");
-  private static String savedNamesFile;
   private static SimpleYML ukNames;
+  private static NationalEthnicity england;
 
-  /** Switch Names to the UK names file. */
+  /** Switch to England, so Names loads geography/england/names.yml. */
   @BeforeClass
-  public static void useUkNames() throws Exception {
-    savedNamesFile = Config.get(NAMES_KEY);
-    Config.set(NAMES_KEY, "names_uk.yml");
+  public static void useEngland() throws Exception {
+    EnglandTestConfig.apply();
+    assertEquals("geography/england/names.yml", Nation.Resource.NAMES.path());
     Names.reloadNames();
-    ukNames = new SimpleYML(Utilities.readResource("names_uk.yml"));
+    ukNames = new SimpleYML(Utilities.readResource("geography/england/names.yml"));
+    england = NationalEthnicity.current();
+    assertNotNull(england);
   }
 
-  /** Restore the original names file. */
+  /** Restore the original configuration and names. */
   @AfterClass
   public static void restoreNames() {
-    Config.set(NAMES_KEY, savedNamesFile);
+    EnglandTestConfig.restore();
     Names.reloadNames();
   }
 
@@ -104,7 +107,7 @@ public class UkNamesAndLanguagesTest {
   }
 
   @Test
-  public void ukLanguagesMostlyEnglishAndAllExportable() throws Exception {
+  public void englandLanguagesMostlyEnglishAndAllExportable() throws Exception {
     Map<?, ?> lookup = new Gson().fromJson(
         Utilities.readResource("language_lookup.json"), Map.class);
     DefaultRandomNumberGenerator random = new DefaultRandomNumberGenerator(42L);
@@ -113,7 +116,7 @@ public class UkNamesAndLanguagesTest {
       int english = 0;
       int n = 5000;
       for (int i = 0; i < n; i++) {
-        String language = Demographics.ukLanguageFromEthnicGroup(group, random);
+        String language = england.pickMainLanguage(group, random);
         assertNotNull(group + " language " + language + " missing from language_lookup.json",
             lookup.get(language));
         if ("english".equals(language)) {
@@ -130,13 +133,13 @@ public class UkNamesAndLanguagesTest {
     assertTrue(asianCounts.containsKey("panjabi"));
     assertFalse(asianCounts.containsKey("japanese"));
     assertEquals("english",
-        Demographics.ukLanguageFromEthnicGroup("unknown", random));
+        england.pickMainLanguage("unknown", random));
   }
 
   @Test
-  public void ukDemographicsUseUkLanguagesAndNeverSpanishForHispanic() {
+  public void englandDemographicsUseEnglandLanguagesAndNeverSpanishForHispanic() {
     Demographics uk = new Demographics();
-    uk.uk = true;
+    uk.nationalEthnicity = england;
     DefaultRandomNumberGenerator random = new DefaultRandomNumberGenerator(3L);
     Set<String> seen = new HashSet<>();
     for (int i = 0; i < 5000; i++) {
