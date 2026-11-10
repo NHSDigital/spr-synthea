@@ -223,6 +223,26 @@ public class FhirR4 {
       Map.entry("Z", "Not stated"),
       Map.entry("99", "Not known"));
 
+  /**
+   * SNOMED CT observable entities for common LOINC vital signs. UK Core binds Observation.code
+   * (preferred) to SNOMED observables, so in UK Core mode these are added alongside the LOINC
+   * coding, which is kept for interoperability and the FHIR vital signs profile.
+   */
+  private static final Map<String, Code> UK_VITAL_SIGN_SNOMED = Map.ofEntries(
+      Map.entry("8302-2", new Code(SNOMED_URI, "1153637007", "Body height")),
+      Map.entry("29463-7", new Code(SNOMED_URI, "27113001", "Body weight")),
+      Map.entry("39156-5", new Code(SNOMED_URI, "60621009", "Body mass index")),
+      Map.entry("85354-9", new Code(SNOMED_URI, "75367002", "Blood pressure")),
+      Map.entry("8480-6", new Code(SNOMED_URI, "271649006", "Systolic blood pressure")),
+      Map.entry("8462-4", new Code(SNOMED_URI, "271650006", "Diastolic blood pressure")),
+      Map.entry("8867-4", new Code(SNOMED_URI, "364075005", "Heart rate")),
+      Map.entry("9279-1", new Code(SNOMED_URI, "86290005", "Respiratory rate")),
+      Map.entry("8310-5", new Code(SNOMED_URI, "386725007", "Body temperature")),
+      Map.entry("2708-6", new Code(SNOMED_URI, "103228002",
+          "Hemoglobin saturation with oxygen")),
+      Map.entry("59408-5", new Code(SNOMED_URI, "103228002",
+          "Hemoglobin saturation with oxygen")));
+
   protected static String US_CORE_VERSION =
       Config.get("exporter.fhir.us_core_version", "6.1.0");
 
@@ -1964,6 +1984,21 @@ public class FhirR4 {
 
 
   /**
+   * Add the SNOMED CT observable entity equivalent of a LOINC vital sign code, if known.
+   * @param concept the CodeableConcept to extend.
+   */
+  protected static void addUkSnomedCoding(CodeableConcept concept) {
+    for (Coding coding : new ArrayList<>(concept.getCoding())) {
+      Code snomed = LOINC_URI.equals(coding.getSystem())
+          ? UK_VITAL_SIGN_SNOMED.get(coding.getCode()) : null;
+      if (snomed != null && concept.getCoding().stream().noneMatch(
+          c -> SNOMED_URI.equals(c.getSystem()) && snomed.code.equals(c.getCode()))) {
+        concept.addCoding(new Coding(SNOMED_URI, snomed.code, snomed.display));
+      }
+    }
+  }
+
+  /**
    * Map the given Observation into a FHIR Observation resource, and add it to the given Bundle.
    *
    * @param personEntry    The Person Entry
@@ -1996,6 +2031,9 @@ public class FhirR4 {
         observationResource.getCode().addCoding(coding);
       }
     }
+    if (USE_UK_CORE_IG) {
+      addUkSnomedCoding(observationResource.getCode());
+    }
 
     // map the code to the official display, ex "vital-signs" --> "Vital Signs"
     // in all cases the text is the same just with these two differences- space/hyphen and caps
@@ -2017,6 +2055,9 @@ public class FhirR4 {
       for (Observation subObs : observation.observations) {
         ObservationComponentComponent comp = new ObservationComponentComponent();
         comp.setCode(mapCodeToCodeableConcept(subObs.codes.get(0), LOINC_URI));
+        if (USE_UK_CORE_IG) {
+          addUkSnomedCoding(comp.getCode());
+        }
         Type value = mapValueToFHIRType(subObs.value, subObs.unit);
         comp.setValue(value);
         observationResource.addComponent(comp);
