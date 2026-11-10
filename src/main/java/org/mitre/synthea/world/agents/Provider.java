@@ -516,7 +516,7 @@ public class Provider implements QuadTreeElement, Serializable {
         servicesProvided.add(EncounterType.WELLNESS);
         String vaFile = Config.get("generate.providers.veterans.default_file");
         loadProviders(location, vaFile, ProviderType.VETERAN, servicesProvided, random,
-                false);
+                true);
 
         servicesProvided.clear();
         servicesProvided.add(EncounterType.WELLNESS);
@@ -633,7 +633,7 @@ public class Provider implements QuadTreeElement, Serializable {
                       random));
             }
           }
-          if (row.get(ClinicianSpecialty.GENERAL_PRACTICE).equals("0")) {
+          if (row.getOrDefault(ClinicianSpecialty.GENERAL_PRACTICE, "0").equals("0")) {
             parsed.clinicianMap.put(ClinicianSpecialty.GENERAL_PRACTICE,
                 parsed.generateClinicianList(1, ClinicianSpecialty.GENERAL_PRACTICE,
                     random));
@@ -810,7 +810,7 @@ public class Provider implements QuadTreeElement, Serializable {
     // using 'remove' instead of 'get' so that we can iterate over the remaining keys later
     d.id = line.remove("id");
     d.npi = line.remove("npi");
-    if (d.npi == null) {
+    if (d.npi == null || d.npi.isEmpty()) {
       d.npi = toProviderNPI(d.id, loaded);
     }
     if (d.id == null) {
@@ -828,6 +828,11 @@ public class Provider implements QuadTreeElement, Serializable {
     d.city = line.remove("city");
     d.state = line.remove("state");
     d.zip = line.remove("zip");
+    String postcode = line.remove("postcode");
+    if (d.zip == null || d.zip.isEmpty()) {
+      // UK provider files use "postcode" rather than "zip"
+      d.zip = postcode;
+    }
     d.fipsCountyCode = line.remove("fips_county");
     d.phone = line.remove("phone");
     d.ownership = line.remove("ownership");
