@@ -582,19 +582,64 @@
       "direct_transition": "Delay_2_Month_2"
     },
     "Prescribe_Medication_3": {
-      "type": "CallSubmodule",
-      "submodule": "medications/hypertension_medication",
-      "direct_transition": "End_Hypertension_Followup_Encounter_2"
+      "type": "Simple",
+      "conditional_transition": [
+        {
+          "transition": "Prescribe_Medication_3_England",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "nation",
+            "operator": "==",
+            "value": "GB-ENG"
+          }
+        },
+        {
+          "transition": "Prescribe_Medication_3_US"
+        }
+      ],
+      "remarks": [
+        "Select nation-specific prescribing guidance: NICE NG136 when the simulation nation is England (GB-ENG)."
+      ]
     },
     "Prescribe_Medication_2": {
-      "type": "CallSubmodule",
-      "submodule": "medications/hypertension_medication",
-      "direct_transition": "End_Hypertension_Followup_Encounter"
+      "type": "Simple",
+      "conditional_transition": [
+        {
+          "transition": "Prescribe_Medication_2_England",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "nation",
+            "operator": "==",
+            "value": "GB-ENG"
+          }
+        },
+        {
+          "transition": "Prescribe_Medication_2_US"
+        }
+      ],
+      "remarks": [
+        "Select nation-specific prescribing guidance: NICE NG136 when the simulation nation is England (GB-ENG)."
+      ]
     },
     "Prescribe_Medication": {
-      "type": "CallSubmodule",
-      "submodule": "medications/hypertension_medication",
-      "direct_transition": "End_Wellness_Encounter"
+      "type": "Simple",
+      "conditional_transition": [
+        {
+          "transition": "Prescribe_Medication_England",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "nation",
+            "operator": "==",
+            "value": "GB-ENG"
+          }
+        },
+        {
+          "transition": "Prescribe_Medication_US"
+        }
+      ],
+      "remarks": [
+        "Select nation-specific prescribing guidance: NICE NG136 when the simulation nation is England (GB-ENG)."
+      ]
     },
     "Terminal": {
       "type": "Terminal"
@@ -930,6 +975,36 @@
       "remarks": [
         "Looping back to Eventual_Hypertension will redraw from the years_until_hypertension_onset distribution. In effect this will eliminate a spike in 18 year olds (i.e., all the random sampling of 18 and under would all appear at age 18) and smooth the distribution (and average onset age) appropriately."
       ]
+    },
+    "Prescribe_Medication_US": {
+      "type": "CallSubmodule",
+      "submodule": "medications/hypertension_medication",
+      "direct_transition": "End_Wellness_Encounter"
+    },
+    "Prescribe_Medication_England": {
+      "type": "CallSubmodule",
+      "submodule": "medications/hypertension_medication_england",
+      "direct_transition": "End_Wellness_Encounter"
+    },
+    "Prescribe_Medication_2_US": {
+      "type": "CallSubmodule",
+      "submodule": "medications/hypertension_medication",
+      "direct_transition": "End_Hypertension_Followup_Encounter"
+    },
+    "Prescribe_Medication_2_England": {
+      "type": "CallSubmodule",
+      "submodule": "medications/hypertension_medication_england",
+      "direct_transition": "End_Hypertension_Followup_Encounter"
+    },
+    "Prescribe_Medication_3_US": {
+      "type": "CallSubmodule",
+      "submodule": "medications/hypertension_medication",
+      "direct_transition": "End_Hypertension_Followup_Encounter_2"
+    },
+    "Prescribe_Medication_3_England": {
+      "type": "CallSubmodule",
+      "submodule": "medications/hypertension_medication_england",
+      "direct_transition": "End_Hypertension_Followup_Encounter_2"
     }
   },
   "gmf_version": 1
