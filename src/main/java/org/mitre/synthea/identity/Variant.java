@@ -33,6 +33,7 @@ public class Variant implements IdentityRecord {
   private LocalDate dateOfBirth;
   private String gender;
   private String socialSecurityNumber;
+  private String nhsNumber;
   private transient Seed seed;
 
   /**
@@ -277,6 +278,23 @@ public class Variant implements IdentityRecord {
     this.socialSecurityNumber = socialSecurityNumber;
   }
 
+  @Override
+  public String getNhsNumber() {
+    if (nhsNumber == null) {
+      return this.getSeed().getNhsNumber();
+    }
+
+    return nhsNumber;
+  }
+
+  /**
+   * Sets the NHS number.
+   * @param nhsNumber The NHS number to set.
+   */
+  public void setNhsNumber(String nhsNumber) {
+    this.nhsNumber = nhsNumber;
+  }
+
   /**
    * Returns the attributes the Synthea Generator usually fills in for a person. These can be used
    * to overwrite those attributes with information from the fixed record file
@@ -298,6 +316,9 @@ public class Variant implements IdentityRecord {
     attributes.put(Person.IDENTIFIER_VARIANT_ID, this.getVariantId());
     if (this.getSocialSecurityNumber() != null) {
       attributes.put(Person.IDENTIFIER_SSN, this.getSocialSecurityNumber());
+    }
+    if (this.getNhsNumber() != null) {
+      attributes.put(Person.IDENTIFIER_NHS_NUMBER, this.getNhsNumber());
     }
     return Utilities.cleanMap(attributes);
   }

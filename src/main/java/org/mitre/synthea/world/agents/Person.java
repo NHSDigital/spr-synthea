@@ -146,6 +146,8 @@ public class Person implements Serializable, RandomNumberGenerator, QuadTreeElem
   public static final String ADHERENCE = "adherence";
   /** Represents the social security number identifier of the person. */
   public static final String IDENTIFIER_SSN = "identifier_ssn";
+  /** Represents the NHS number identifier of the person. */
+  public static final String IDENTIFIER_NHS_NUMBER = "identifier_nhs_number";
   /** Represents the driver's license identifier of the person. */
   public static final String IDENTIFIER_DRIVERS = "identifier_drivers";
   /** Represents the passport identifier of the person. */

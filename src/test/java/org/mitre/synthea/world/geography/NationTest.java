@@ -1,6 +1,7 @@
 package org.mitre.synthea.world.geography;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -34,6 +35,7 @@ public class NationTest {
     assertEquals("South West", Nation.defaultState());
     assertEquals("http://hl7.org/fhir/sid/passport-GBR", Nation.passportUri());
     assertEquals("geography/england", Nation.ENGLAND.resourceFolder());
+    assertTrue(Nation.current().usesNhsNumbers());
   }
 
   @Test
@@ -70,6 +72,7 @@ public class NationTest {
     assertEquals("US", Nation.isoCountryCode());
     assertEquals("Massachusetts", Nation.defaultState());
     assertEquals("http://hl7.org/fhir/sid/passport-USA", Nation.passportUri());
+    assertFalse(Nation.current().usesNhsNumbers());
     assertEquals("geography/demographics.csv", Nation.Resource.DEMOGRAPHICS.path());
     assertEquals("geography/zipcodes.csv", Nation.Resource.POSTCODES.path());
     assertEquals("names.yml", Nation.Resource.NAMES.path());

@@ -142,6 +142,11 @@ public enum Nation {
             : "http://hl7.org/fhir/sid/passport-GBR");
   }
 
+  /** Whether patients in this nation are given NHS numbers. */
+  public boolean usesNhsNumbers() {
+    return this == ENGLAND;
+  }
+
   /** The resource folder for this nation, e.g. "geography/england", or null for UPSTREAM. */
   public String resourceFolder() {
     return folder == null ? null : "geography/" + folder;

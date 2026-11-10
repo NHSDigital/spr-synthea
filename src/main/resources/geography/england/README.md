@@ -7,6 +7,7 @@ https://www.gov.uk/government/publications/open-standards-for-government/country
 
 Setting the nation to England also turns on:
 
+- NHS numbers (Modulus 11) for each patient, used in FHIR identifiers and in output file names.
 - UK addresses and birthplaces (country `GB`) and passports with the `passport-GBR` system.
 
 | File | Purpose | Setting that overrides it |

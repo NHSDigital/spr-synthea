@@ -14,8 +14,11 @@ import org.mitre.synthea.export.rif.identifiers.Passport;
 import org.mitre.synthea.helpers.Attributes;
 import org.mitre.synthea.helpers.Attributes.Inventory;
 import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.DefaultRandomNumberGenerator;
+import org.mitre.synthea.helpers.NhsNumberGenerator;
 import org.mitre.synthea.helpers.PhysiologyValueGenerator;
 import org.mitre.synthea.helpers.RandomCollection;
+import org.mitre.synthea.helpers.RandomNumberGenerator;
 import org.mitre.synthea.helpers.SimpleCSV;
 import org.mitre.synthea.helpers.TrendingValueGenerator;
 import org.mitre.synthea.helpers.Utilities;
@@ -64,6 +67,7 @@ public final class LifecycleModule extends Module {
   public static final String ADHERENCE_PROBABILITY = "adherence probability";
 
   private static final String COUNTRY_CODE = Nation.isoCountryCode();
+  private static final long NHS_NUMBER_SEED_SALT = 0x4E48534E554D4245L;
   private static final Double MIDDLE_NAME_PROBABILITY =
       Config.getAsDouble("generate.middle_names", 0.80);
 
@@ -193,6 +197,15 @@ public final class LifecycleModule extends Module {
     String ssn = "999-" + ((person.randInt(99 - 10 + 1) + 10)) + "-"
         + ((person.randInt(9999 - 1000 + 1) + 1000));
     attributes.put(Person.IDENTIFIER_SSN, ssn);
+
+    Nation nation = Nation.current();
+    if (nation.usesNhsNumbers() && attributes.get(Person.IDENTIFIER_NHS_NUMBER) == null) {
+      // Use a dedicated RNG so NHS number allocation does not perturb the person's random stream
+      RandomNumberGenerator nhsRandom =
+          new DefaultRandomNumberGenerator(person.getSeed() ^ NHS_NUMBER_SEED_SALT);
+      attributes.put(Person.IDENTIFIER_NHS_NUMBER,
+          NhsNumberGenerator.getInstance().randomNhsNumber(nhsRandom));
+    }
 
     attributes.put(Person.COUNTRY, Nation.isoCountryCode());
     attributes.put(Person.NATION, Nation.configuredCode());
@@ -1332,6 +1345,7 @@ public final class LifecycleModule extends Module {
     Attributes.inventory(attributes, m, Person.IDENTIFIER_DRIVERS, false, true, null);
     Attributes.inventory(attributes, m, Person.IDENTIFIER_PASSPORT, false, true, null);
     Attributes.inventory(attributes, m, Person.IDENTIFIER_SSN, false, true, "999-99-9999");
+    Attributes.inventory(attributes, m, Person.IDENTIFIER_NHS_NUMBER, false, true, "9999999999");
     Attributes.inventory(attributes, m, Person.LAST_NAME, false, true, null);
     Attributes.inventory(attributes, m, Person.MAIDEN_NAME, false, true, null);
     Attributes.inventory(attributes, m, Person.MARITAL_STATUS, false, true, "M");

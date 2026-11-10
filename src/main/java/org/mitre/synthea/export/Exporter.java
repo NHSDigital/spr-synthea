@@ -902,7 +902,8 @@ public abstract class Exporter {
 
   /**
    * Get the filename to used to export the patient record.
-   * See the configuration setting "exporter.use_uuid_filenames".
+   * See the configuration settings "exporter.use_uuid_filenames" and
+   * "exporter.use_nhs_number_filenames".
    *
    * @param person    The person being exported.
    * @param tag       A tag to add to the filename before the extension.
@@ -910,8 +911,12 @@ public abstract class Exporter {
    * @return The filename only (not a path).
    */
   public static String filename(Person person, String tag, String extension) {
+    Object nhsNumber = person.attributes.get(Person.IDENTIFIER_NHS_NUMBER);
     if (Config.getAsBoolean("exporter.use_uuid_filenames")) {
       return person.attributes.get(Person.ID) + tag + "." + extension;
+    } else if (nhsNumber != null
+        && Config.getAsBoolean("exporter.use_nhs_number_filenames", false)) {
+      return nhsNumber + tag + "." + extension;
     } else {
       // ensure unique filenames for now
       return person.attributes.get(Person.NAME).toString().replace(' ', '_') + "_"
