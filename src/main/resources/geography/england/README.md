@@ -8,10 +8,16 @@ https://www.gov.uk/government/publications/open-standards-for-government/country
 Setting the nation to England also turns on:
 
 - NHS numbers (Modulus 11) for each patient, used in FHIR identifiers and in output file names.
+- NHS Data Dictionary ethnic categories (UK Core `EthnicCategoryEngland`), from `ethnicity.json`.
 - UK addresses and birthplaces (country `GB`) and passports with the `passport-GBR` system.
 
 | File | Purpose | Setting that overrides it |
 |------|---------|---------------------------|
+| `demographics.csv` | Towns in the South West region, with ONS census ethnic group columns | `generate.demographics.default_file` |
+| `postcodes.csv` | Postcode districts with coordinates | `generate.geography.zipcodes.default_file` |
+| `sdoh.csv` | Social determinants of health by county | `generate.geography.sdoh.default_file` |
+| `timezones.csv` | Time zone for each region | `generate.geography.timezones.default_file` |
+| `ethnicity.json` | Ethnic groups, NHS ethnic category weights and displays, and main language by group | `generate.demographics.ethnicity_file` |
 
 Synthea looks for each file in this order:
 

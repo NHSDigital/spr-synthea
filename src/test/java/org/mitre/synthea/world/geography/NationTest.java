@@ -2,6 +2,7 @@ package org.mitre.synthea.world.geography;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -11,6 +12,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.DefaultRandomNumberGenerator;
 
 /**
  * Checks nation selection from generate.geography.country_code and per-nation resource lookup.
@@ -77,6 +79,8 @@ public class NationTest {
     assertEquals("geography/zipcodes.csv", Nation.Resource.POSTCODES.path());
     assertEquals("names.yml", Nation.Resource.NAMES.path());
     assertEquals("providers/nursing.csv", Nation.Resource.NURSING.path());
+    assertNull(Nation.Resource.ETHNICITY.path());
+    assertNull(NationalEthnicity.current());
   }
 
   @Test
@@ -92,6 +96,21 @@ public class NationTest {
     assertEquals("names.yml", Nation.Resource.NAMES.path());
     Config.set(Nation.Resource.HOSPICE.configKey, " ");
     assertNull("blank disables the resource", Nation.Resource.HOSPICE.path());
+  }
+
+  @Test
+  public void englandEthnicityModelLoads() {
+    NationalEthnicity england = NationalEthnicity.current();
+    assertNotNull(england);
+    assertSame(england, NationalEthnicity.load("geography/england/ethnicity.json"));
+    assertEquals(5, england.getGroups().size());
+    assertTrue(england.getCategorySystem().endsWith("UKCore-EthnicCategoryEngland"));
+    assertEquals("White - British", england.getCategoryDisplay("A"));
+    DefaultRandomNumberGenerator random = new DefaultRandomNumberGenerator(1L);
+    assertEquals("C", england.pickCategory("white", "polish", random));
+    assertEquals("S", england.pickCategory("unknown", "english", random));
+    String asian = england.pickCategory("asian", "english", random);
+    assertNotNull(england.getCategoryDisplay(asian));
   }
 
   @Test

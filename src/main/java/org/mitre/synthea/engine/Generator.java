@@ -927,6 +927,10 @@ public class Generator {
     demographicsOutput.put(Person.ETHNICITY, ethnicity);
     String language = city.languageFromRaceAndEthnicity(race, ethnicity, random);
     demographicsOutput.put(Person.FIRST_LANGUAGE, language);
+    if (city.nationalEthnicity != null) {
+      demographicsOutput.put(Person.ETHNIC_CATEGORY,
+          city.nationalEthnicity.pickCategory(race, language, random));
+    }
 
     // Generate the person's gender based on their location.
     String gender;

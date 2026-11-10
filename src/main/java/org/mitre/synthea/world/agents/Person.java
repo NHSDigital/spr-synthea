@@ -73,6 +73,8 @@ public class Person implements Serializable, RandomNumberGenerator, QuadTreeElem
   public static final String ETHNICITY = "ethnicity";
   /** Represents the first language of the person. */
   public static final String FIRST_LANGUAGE = "first_language";
+  /** NHS Data Dictionary (2001 census) ethnic category code, e.g. "A" for White British. */
+  public static final String ETHNIC_CATEGORY = "ethnic_category";
   /** Represents the gender of the person. */
   public static final String GENDER = "gender";
   /** Represents whether the person is part of a multiple birth. */

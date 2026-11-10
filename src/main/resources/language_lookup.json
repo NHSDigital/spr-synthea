@@ -93,5 +93,35 @@
     "code": "und",
     "system": "urn:ietf:bcp:47",
     "display": "Undetermined"
+  },
+  "romanian": {
+    "code": "ro",
+    "system": "urn:ietf:bcp:47",
+    "display": "Romanian"
+  },
+  "panjabi": {
+    "code": "pa",
+    "system": "urn:ietf:bcp:47",
+    "display": "Panjabi"
+  },
+  "urdu": {
+    "code": "ur",
+    "system": "urn:ietf:bcp:47",
+    "display": "Urdu"
+  },
+  "bengali": {
+    "code": "bn",
+    "system": "urn:ietf:bcp:47",
+    "display": "Bengali"
+  },
+  "gujarati": {
+    "code": "gu",
+    "system": "urn:ietf:bcp:47",
+    "display": "Gujarati"
+  },
+  "somali": {
+    "code": "so",
+    "system": "urn:ietf:bcp:47",
+    "display": "Somali"
   }
 }

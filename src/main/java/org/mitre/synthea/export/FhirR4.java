@@ -707,6 +707,9 @@ public class FhirR4 {
 
     String firstLanguage = (String) person.attributes.get(Person.FIRST_LANGUAGE);
     Map languageMap = (Map) languageLookup.get(firstLanguage);
+    if (languageMap == null) {
+      languageMap = (Map) languageLookup.get("english");
+    }
     Code languageCode = new Code((String) languageMap.get("system"),
         (String) languageMap.get("code"), (String) languageMap.get("display"));
     List<PatientCommunicationComponent> communication =

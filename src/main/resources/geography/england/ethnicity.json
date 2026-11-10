@@ -1,0 +1,104 @@
+{
+  "description": "England ethnicity model. 'groups' are the ONS census high-level ethnic group columns in demographics.csv. 'ethnic_category' assigns an NHS Data Dictionary ethnic category (2001 census categories, UK Core EthnicCategoryEngland) within each group, weighted by ONS Census 2021 England proportions (TS021); Gypsy, Irish Traveller and Roma count as 'Any other White background', Chinese as R and Arab as S. 'main_language' approximates ONS Census 2021 main language by ethnic group for England (TS024); every language must exist in language_lookup.json.",
+  "groups": [
+    "WHITE",
+    "MIXED",
+    "BLACK",
+    "ASIAN",
+    "OTHER"
+  ],
+  "ethnic_category": {
+    "system": "https://fhir.hl7.org.uk/CodeSystem/UKCore-EthnicCategoryEngland",
+    "white_with_other_main_language": "C",
+    "default": "S",
+    "weights": {
+      "white": {
+        "A": 73.5,
+        "B": 0.9,
+        "C": 6.6
+      },
+      "mixed": {
+        "D": 1.0,
+        "E": 0.5,
+        "F": 0.8,
+        "G": 0.7
+      },
+      "asian": {
+        "H": 3.3,
+        "J": 2.7,
+        "K": 1.1,
+        "L": 1.6,
+        "R": 0.7
+      },
+      "black": {
+        "M": 1.1,
+        "N": 2.5,
+        "P": 0.5
+      },
+      "other": {
+        "S": 1.0
+      }
+    },
+    "displays": {
+      "A": "White - British",
+      "B": "White - Irish",
+      "C": "White - Any other White background",
+      "D": "Mixed - White and Black Caribbean",
+      "E": "Mixed - White and Black African",
+      "F": "Mixed - White and Asian",
+      "G": "Mixed - Any other mixed background",
+      "H": "Asian or Asian British - Indian",
+      "J": "Asian or Asian British - Pakistani",
+      "K": "Asian or Asian British - Bangladeshi",
+      "L": "Asian or Asian British - Any other Asian background",
+      "M": "Black or Black British - Caribbean",
+      "N": "Black or Black British - African",
+      "P": "Black or Black British - Any other Black background",
+      "R": "Other Ethnic Groups - Chinese",
+      "S": "Other Ethnic Groups - Any other ethnic group",
+      "Z": "Not stated",
+      "99": "Not known"
+    }
+  },
+  "main_language": {
+    "white": {
+      "english": 0.94,
+      "polish": 0.025,
+      "romanian": 0.015,
+      "portuguese": 0.006,
+      "spanish": 0.004,
+      "italian": 0.004,
+      "russian": 0.002,
+      "french": 0.002,
+      "german": 0.002
+    },
+    "mixed": {
+      "english": 0.97,
+      "spanish": 0.01,
+      "portuguese": 0.01,
+      "polish": 0.01
+    },
+    "asian": {
+      "english": 0.8,
+      "urdu": 0.05,
+      "panjabi": 0.05,
+      "bengali": 0.04,
+      "gujarati": 0.03,
+      "chinese": 0.02,
+      "hindi": 0.01
+    },
+    "black": {
+      "english": 0.95,
+      "somali": 0.02,
+      "french": 0.02,
+      "portuguese": 0.01
+    },
+    "other": {
+      "english": 0.82,
+      "arabic": 0.1,
+      "spanish": 0.03,
+      "portuguese": 0.03,
+      "french": 0.02
+    }
+  }
+}

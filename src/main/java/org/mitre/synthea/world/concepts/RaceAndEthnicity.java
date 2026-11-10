@@ -34,6 +34,7 @@ public class RaceAndEthnicity {
     result.put("native", "1002-5"); // american indian or alaska native
     result.put("hawaiian", "2076-8"); // native hawaiian or pacific islander
     result.put("other", "2131-1"); // other
+    result.put("mixed", "2131-1"); // UK mixed/multiple ethnic groups map to other
     return Collections.unmodifiableMap(result);
   }
 
@@ -46,6 +47,7 @@ public class RaceAndEthnicity {
     result.put("native", "2186-5"); // non-hispanic
     result.put("hawaiian", "2186-5"); // non-hispanic
     result.put("other", "2186-5"); // non-hispanic
+    result.put("mixed", "2186-5"); // non-hispanic
     return Collections.unmodifiableMap(result);
   }
 
@@ -58,6 +60,7 @@ public class RaceAndEthnicity {
     result.put("native", "non-hispanic");
     result.put("hawaiian", "non-hispanic");
     result.put("other", "non-hispanic");
+    result.put("mixed", "non-hispanic");
     return Collections.unmodifiableMap(result);
   }
 }
