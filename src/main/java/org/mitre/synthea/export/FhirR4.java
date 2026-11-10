@@ -191,6 +191,38 @@ public class FhirR4 {
 
   protected static boolean USE_US_CORE_IG =
       Config.getAsBoolean("exporter.fhir.use_us_core_ig");
+  protected static boolean USE_UK_CORE_IG =
+      Config.getAsBoolean("exporter.fhir.use_uk_core_ig", false);
+
+  protected static final String NHS_NUMBER_SYSTEM = "https://fhir.nhs.uk/Id/nhs-number";
+  protected static final String UK_CORE_NHS_NUMBER_VERIFICATION_STATUS =
+      "https://fhir.hl7.org.uk/StructureDefinition/Extension-UKCore-NHSNumberVerificationStatus";
+  protected static final String UK_CORE_NHS_NUMBER_VERIFICATION_STATUS_SYSTEM =
+      "https://fhir.hl7.org.uk/CodeSystem/UKCore-NHSNumberVerificationStatusEngland";
+  protected static final String UK_CORE_ETHNIC_CATEGORY =
+      "https://fhir.hl7.org.uk/StructureDefinition/Extension-UKCore-EthnicCategory";
+  protected static final String UK_CORE_ETHNIC_CATEGORY_SYSTEM =
+      "https://fhir.hl7.org.uk/CodeSystem/UKCore-EthnicCategoryEngland";
+  private static final Map<String, String> UK_ETHNIC_CATEGORY_DISPLAY = Map.ofEntries(
+      Map.entry("A", "White - British"),
+      Map.entry("B", "White - Irish"),
+      Map.entry("C", "White - Any other White background"),
+      Map.entry("D", "Mixed - White and Black Caribbean"),
+      Map.entry("E", "Mixed - White and Black African"),
+      Map.entry("F", "Mixed - White and Asian"),
+      Map.entry("G", "Mixed - Any other mixed background"),
+      Map.entry("H", "Asian or Asian British - Indian"),
+      Map.entry("J", "Asian or Asian British - Pakistani"),
+      Map.entry("K", "Asian or Asian British - Bangladeshi"),
+      Map.entry("L", "Asian or Asian British - Any other Asian background"),
+      Map.entry("M", "Black or Black British - Caribbean"),
+      Map.entry("N", "Black or Black British - African"),
+      Map.entry("P", "Black or Black British - Any other Black background"),
+      Map.entry("R", "Other Ethnic Groups - Chinese"),
+      Map.entry("S", "Other Ethnic Groups - Any other ethnic group"),
+      Map.entry("Z", "Not stated"),
+      Map.entry("99", "Not known"));
+
   protected static String US_CORE_VERSION =
       Config.get("exporter.fhir.us_core_version", "6.1.0");
 
@@ -245,8 +277,13 @@ public class FhirR4 {
     return useUSCore7;
   }
 
-  private static final String COUNTRY_CODE = Config.get("generate.geography.country_code");
-  private static final String PASSPORT_URI = Config.get("generate.geography.passport_uri", "http://hl7.org/fhir/sid/passport-USA");
+  private static String countryCode() {
+    return Config.get("generate.geography.country_code");
+  }
+
+  private static String passportUri() {
+    return Config.get("generate.geography.passport_uri", "http://hl7.org/fhir/sid/passport-USA");
+  }
 
   private static final HashSet<Class<? extends Resource>> includedResources = new HashSet<>();
   private static final HashSet<Class<? extends Resource>> excludedResources = new HashSet<>();
@@ -522,7 +559,90 @@ public class FhirR4 {
       // Add Provenance to the Bundle
       provenance(bundle, person, stopTime);
     }
+
+    linkProceduresToCarePlans(person, bundle);
+    if (USE_UK_CORE_IG) {
+      addNhsNumberToPatientReferences(person, personEntry, bundle);
+    }
     return bundle;
+  }
+
+  /**
+   * Populate Procedure.basedOn for procedures that name the care plans they are carried out
+   * under. Each code is linked to the person's most recently started CarePlan with that code
+   * that is active when the procedure starts.
+   */
+  private static void linkProceduresToCarePlans(Person person, Bundle bundle) {
+    Map<String, BundleEntryComponent> entriesById = null;
+    for (Encounter encounter : person.record.encounters) {
+      for (Procedure procedure : encounter.procedures) {
+        if (procedure.codesBasedOn == null || procedure.codesBasedOn.isEmpty()) {
+          continue;
+        }
+        if (entriesById == null) {
+          entriesById = new HashMap<>();
+          for (BundleEntryComponent entry : bundle.getEntry()) {
+            entriesById.put(entry.getResource().fhirType() + "/"
+                + entry.getResource().getIdElement().getIdPart(), entry);
+          }
+        }
+        BundleEntryComponent procedureEntry =
+            entriesById.get("Procedure/" + procedure.uuid.toString());
+        if (procedureEntry == null) {
+          continue;
+        }
+        org.hl7.fhir.r4.model.Procedure procedureResource =
+            (org.hl7.fhir.r4.model.Procedure) procedureEntry.getResource();
+        for (Code code : procedure.codesBasedOn) {
+          CarePlan plan = findActiveCarePlan(person, code.code, procedure.start);
+          if (plan == null) {
+            continue;
+          }
+          BundleEntryComponent planEntry = entriesById.get("CarePlan/" + plan.uuid.toString());
+          if (planEntry != null) {
+            procedureResource.addBasedOn(new Reference(planEntry.getFullUrl()));
+          }
+        }
+      }
+    }
+  }
+
+  private static CarePlan findActiveCarePlan(Person person, String code, long time) {
+    CarePlan found = null;
+    for (Encounter encounter : person.record.encounters) {
+      for (CarePlan plan : encounter.careplans) {
+        boolean active = plan.start <= time && (plan.stop == 0L || plan.stop >= time);
+        if (active && plan.codes.stream().anyMatch(c -> code.equals(c.code))
+            && (found == null || plan.start >= found.start)) {
+          found = plan;
+        }
+      }
+    }
+    return found;
+  }
+
+  /**
+   * Add the NHS number as a logical identifier alongside every literal reference to the
+   * Patient, so that resources can be matched to the patient without resolving the Bundle.
+   */
+  private static void addNhsNumberToPatientReferences(Person person,
+      BundleEntryComponent personEntry, Bundle bundle) {
+    String nhsNumber = (String) person.attributes.get(Person.IDENTIFIER_NHS_NUMBER);
+    if (nhsNumber == null) {
+      return;
+    }
+    String patientUrl = personEntry.getFullUrl();
+    for (BundleEntryComponent entry : bundle.getEntry()) {
+      if (entry == personEntry) {
+        continue;
+      }
+      for (Reference ref : FHIR_CTX.newTerser()
+          .getAllPopulatedChildElementsOfType(entry.getResource(), Reference.class)) {
+        if (patientUrl.equals(ref.getReference()) && !ref.hasIdentifier()) {
+          ref.setIdentifier(new Identifier().setSystem(NHS_NUMBER_SYSTEM).setValue(nhsNumber));
+        }
+      }
+    }
   }
 
   /**
@@ -571,13 +691,26 @@ public class FhirR4 {
         .setSystem("http://hospital.smarthealthit.org")
         .setValue((String) person.attributes.get(Person.ID));
 
-    Code ssnCode = new Code("http://terminology.hl7.org/CodeSystem/v2-0203", "SS", "Social Security Number");
-    patientResource.addIdentifier()
-        .setType(mapCodeToCodeableConcept(ssnCode, "http://terminology.hl7.org/CodeSystem/v2-0203"))
-        .setSystem("http://hl7.org/fhir/sid/us-ssn")
-        .setValue((String) person.attributes.get(Person.IDENTIFIER_SSN));
+    if (USE_UK_CORE_IG && person.attributes.get(Person.IDENTIFIER_NHS_NUMBER) != null) {
+      CodeableConcept verificationStatus = new CodeableConcept().addCoding(new Coding()
+          .setSystem(UK_CORE_NHS_NUMBER_VERIFICATION_STATUS_SYSTEM)
+          .setCode("01")
+          .setDisplay("Number present and verified"));
+      patientResource.addIdentifier()
+          .setSystem(NHS_NUMBER_SYSTEM)
+          .setValue((String) person.attributes.get(Person.IDENTIFIER_NHS_NUMBER))
+          .addExtension(new Extension(UK_CORE_NHS_NUMBER_VERIFICATION_STATUS, verificationStatus));
+    }
 
-    if (person.attributes.get(Person.IDENTIFIER_DRIVERS) != null) {
+    if (!USE_UK_CORE_IG) {
+      Code ssnCode = new Code("http://terminology.hl7.org/CodeSystem/v2-0203", "SS", "Social Security Number");
+      patientResource.addIdentifier()
+          .setType(mapCodeToCodeableConcept(ssnCode, "http://terminology.hl7.org/CodeSystem/v2-0203"))
+          .setSystem("http://hl7.org/fhir/sid/us-ssn")
+          .setValue((String) person.attributes.get(Person.IDENTIFIER_SSN));
+    }
+
+    if (!USE_UK_CORE_IG && person.attributes.get(Person.IDENTIFIER_DRIVERS) != null) {
       Code driversCode = new Code("http://terminology.hl7.org/CodeSystem/v2-0203", "DL", "Driver's license number");
       patientResource.addIdentifier()
           .setType(mapCodeToCodeableConcept(driversCode, "http://terminology.hl7.org/CodeSystem/v2-0203"))
@@ -589,7 +722,7 @@ public class FhirR4 {
       Code passportCode = new Code("http://terminology.hl7.org/CodeSystem/v2-0203", "PPN", "Passport Number");
       patientResource.addIdentifier()
           .setType(mapCodeToCodeableConcept(passportCode, "http://terminology.hl7.org/CodeSystem/v2-0203"))
-          .setSystem(PASSPORT_URI)
+          .setSystem(passportUri())
           .setValue((String) person.attributes.get(Person.IDENTIFIER_PASSPORT));
     }
 
@@ -699,10 +832,25 @@ public class FhirR4 {
       patientResource.addExtension(ethnicityExtension);
     }
 
+    String ethnicCategory = (String) person.attributes.get(Person.ETHNIC_CATEGORY);
+    if (USE_UK_CORE_IG && ethnicCategory != null) {
+      CodeableConcept category = new CodeableConcept().addCoding(new Coding()
+          .setSystem(UK_CORE_ETHNIC_CATEGORY_SYSTEM)
+          .setCode(ethnicCategory)
+          .setDisplay(UK_ETHNIC_CATEGORY_DISPLAY.get(ethnicCategory)));
+      patientResource.addExtension(new Extension(UK_CORE_ETHNIC_CATEGORY, category));
+    }
+
     String firstLanguage = (String) person.attributes.get(Person.FIRST_LANGUAGE);
     Map languageMap = (Map) languageLookup.get(firstLanguage);
+    if (languageMap == null) {
+      languageMap = (Map) languageLookup.get("english");
+    }
     Code languageCode = new Code((String) languageMap.get("system"),
         (String) languageMap.get("code"), (String) languageMap.get("display"));
+    if (USE_UK_CORE_IG && "en-US".equals(languageCode.code)) {
+      languageCode = new Code(languageCode.system, "en-GB", "English (United Kingdom)");
+    }
     List<PatientCommunicationComponent> communication =
         new ArrayList<PatientCommunicationComponent>();
     communication.add(new PatientCommunicationComponent(
@@ -771,8 +919,8 @@ public class FhirR4 {
         .setCity((String) person.attributes.get(Person.CITY))
         .setPostalCode((String) person.attributes.get(Person.ZIP))
         .setState(state);
-    if (COUNTRY_CODE != null) {
-      addrResource.setCountry(COUNTRY_CODE);
+    if (countryCode() != null) {
+      addrResource.setCountry(countryCode());
     }
 
     Address birthplace = new Address();
@@ -2715,6 +2863,10 @@ public class FhirR4 {
               null), null));
     }
 
+    if (carePlan.title != null) {
+      careplanResource.setTitle(carePlan.title);
+    }
+
     String narrative = "Care Plan for ";
     careplanResource.setIntent(CarePlanIntent.ORDER);
     careplanResource.setSubject(new Reference(personEntry.getFullUrl()));
@@ -3166,8 +3318,8 @@ public class FhirR4 {
         .setCity(provider.city)
         .setPostalCode(provider.zip)
         .setState(provider.state);
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
+    if (countryCode() != null) {
+      address.setCountry(countryCode());
     }
     organizationResource.addAddress(address);
 
@@ -3233,8 +3385,8 @@ public class FhirR4 {
         .setCity(provider.city)
         .setPostalCode(provider.zip)
         .setState(provider.state);
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
+    if (countryCode() != null) {
+      address.setCountry(countryCode());
     }
     location.setAddress(address);
     LocationPositionComponent position = new LocationPositionComponent();
@@ -3293,8 +3445,8 @@ public class FhirR4 {
         .setCity((String) clinician.attributes.get(Clinician.CITY))
         .setPostalCode((String) clinician.attributes.get(Clinician.ZIP))
         .setState((String) clinician.attributes.get(Clinician.STATE));
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
+    if (countryCode() != null) {
+      address.setCountry(countryCode());
     }
     practitionerResource.addAddress(address);
 

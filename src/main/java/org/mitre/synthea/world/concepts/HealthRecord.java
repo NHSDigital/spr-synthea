@@ -481,6 +481,12 @@ public class HealthRecord implements Serializable {
     public Clinician clinician;
 
     /**
+     * Codes of care plans this procedure is carried out under. Exporters link the procedure to
+     * the person's matching care plan that is active when the procedure starts.
+     */
+    public List<Code> codesBasedOn;
+
+    /**
      * Constructor for Procedure HealthRecord Entry.
      *
      * @param time the time of the procedure.
@@ -489,6 +495,7 @@ public class HealthRecord implements Serializable {
     public Procedure(long time, String type) {
       super(time, type);
       this.stop = this.start + TimeUnit.MINUTES.toMillis(15);
+      this.codesBasedOn = new ArrayList<Code>();
     }
   }
 
@@ -511,6 +518,11 @@ public class HealthRecord implements Serializable {
      * The reason for stopping the care plan.
      */
     public Code stopReason;
+
+    /**
+     * Optional human-readable title of the care plan.
+     */
+    public String title;
 
     /**
      * Constructor for CarePlan HealthRecord Entry.

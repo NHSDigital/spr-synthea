@@ -293,6 +293,63 @@ public class Demographics implements Comparable<Demographics>, Serializable {
   private static final Map<String, RandomCollection<String>> UK_LANGUAGE_USAGE =
       createUkLanguageUsage();
 
+  /**
+   * Selects an NHS Data Dictionary ethnic category (the 2001 census categories used by the UK
+   * Core EthnicCategory extension) within a broad ethnic group. Weights follow the ONS Census
+   * 2021 England ethnic group proportions (TS021) mapped onto the 2001 categories: Gypsy, Irish
+   * Traveller and Roma are counted as "Any other White background", Chinese as R, and Arab as S.
+   * White people whose main language is not English are assigned "Any other White background".
+   * @param race UK broad ethnic group: white, mixed, black, asian or other
+   * @param language the person's main language
+   * @param random the random number generator to use
+   * @return the ethnic category code, e.g. "A"
+   */
+  public static String ukEthnicCategory(String race, String language,
+      RandomNumberGenerator random) {
+    if ("white".equals(race) && !"english".equals(language)) {
+      return "C";
+    }
+    RandomCollection<String> categories = UK_ETHNIC_CATEGORIES.get(race);
+    if (categories == null) {
+      return "S";
+    }
+    return categories.next(random);
+  }
+
+  private static final Map<String, RandomCollection<String>> UK_ETHNIC_CATEGORIES =
+      createUkEthnicCategories();
+
+  private static Map<String, RandomCollection<String>> createUkEthnicCategories() {
+    Map<String, RandomCollection<String>> map = new HashMap<>();
+    RandomCollection<String> white = new RandomCollection<>();
+    white.add(73.5, "A");
+    white.add(0.9, "B");
+    white.add(6.6, "C");
+    map.put("white", white);
+    RandomCollection<String> mixed = new RandomCollection<>();
+    mixed.add(1.0, "D");
+    mixed.add(0.5, "E");
+    mixed.add(0.8, "F");
+    mixed.add(0.7, "G");
+    map.put("mixed", mixed);
+    RandomCollection<String> asian = new RandomCollection<>();
+    asian.add(3.3, "H");
+    asian.add(2.7, "J");
+    asian.add(1.1, "K");
+    asian.add(1.6, "L");
+    asian.add(0.7, "R");
+    map.put("asian", asian);
+    RandomCollection<String> black = new RandomCollection<>();
+    black.add(1.1, "M");
+    black.add(2.5, "N");
+    black.add(0.5, "P");
+    map.put("black", black);
+    RandomCollection<String> other = new RandomCollection<>();
+    other.add(1.0, "S");
+    map.put("other", other);
+    return map;
+  }
+
   private static Map<String, RandomCollection<String>> createUkLanguageUsage() {
     Map<String, RandomCollection<String>> map = new HashMap<>();
     RandomCollection<String> white = new RandomCollection<>();
