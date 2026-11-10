@@ -85,6 +85,31 @@ public class ProviderTest {
   }
 
   @Test
+  public void testCliniciansWithDifferentSpecialtiesHaveDistinctIdentities() throws Exception {
+    Provider.loadProviders(location, "providers/multi_specialty_hospitals.csv",
+        ProviderType.HOSPITAL, new HashSet<>(), providerRandom, false);
+    boolean checkedMultiSpecialty = false;
+    for (Provider p : Provider.getProviderList()) {
+      Set<String> ids = new HashSet<>();
+      Set<String> npis = new HashSet<>();
+      int count = 0;
+      for (ArrayList<Clinician> clinicians : p.clinicianMap.values()) {
+        for (Clinician clinician : clinicians) {
+          ids.add(clinician.getResourceID());
+          npis.add(clinician.npi);
+          count++;
+        }
+      }
+      Assert.assertEquals(p.name + " has clinicians sharing an ID", count, ids.size());
+      Assert.assertEquals(p.name + " has clinicians sharing an NPI", count, npis.size());
+      checkedMultiSpecialty |= p.clinicianMap.size() > 1;
+    }
+    Assert.assertTrue(checkedMultiSpecialty);
+    Provider hospital = Provider.getProviderList().get(0);
+    Assert.assertEquals(2, hospital.clinicianMap.get("CERTIFIED NURSE MIDWIFE").size());
+  }
+
+  @Test
   public void testAllFacilitiesHaveAnIdOrNpi() {
     Provider.loadProviders(location, providerRandom);
     for (Provider p : Provider.getProviderList()) {
