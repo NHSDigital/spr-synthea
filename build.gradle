@@ -159,6 +159,8 @@ dependencies {
 
 // Provide more descriptive test failure output
 test {
+  // GeneratorCliTest runs App in child JVMs with the real (UK default) configuration.
+  systemProperty 'synthea.test.classpath', sourceSets.main.runtimeClasspath.asPath
   testLogging {
     exceptionFormat = 'full'
     // showExceptions = true
