@@ -1,5 +1,7 @@
 package org.mitre.synthea.modules;
 
+import static org.mitre.synthea.world.geography.Nation.Resource.IMMUNIZATION_SCHEDULE;
+
 import com.google.gson.Gson;
 
 import java.util.ArrayList;
@@ -53,7 +55,7 @@ public class Immunizations {
    */
   @SuppressWarnings("rawtypes")
   public static Map<String, Map> getSchedule(Nation nation) {
-    return SCHEDULES.computeIfAbsent(Nation.Resource.IMMUNIZATION_SCHEDULE.path(nation),
+    return SCHEDULES.computeIfAbsent(nation.getResource(IMMUNIZATION_SCHEDULE),
         Immunizations::loadImmunizationSchedule);
   }
 

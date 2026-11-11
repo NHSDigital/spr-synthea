@@ -1,5 +1,8 @@
 package org.mitre.synthea.world.geography;
 
+import static org.mitre.synthea.world.geography.Nation.Resource.POSTCODES;
+import static org.mitre.synthea.world.geography.Nation.Resource.SDOH;
+
 import com.google.common.collect.Table;
 import com.google.gson.Gson;
 
@@ -142,7 +145,7 @@ public class Location implements Serializable {
 
     String filename = null;
     try {
-      filename = Nation.Resource.POSTCODES.path(nation);
+      filename = nation.getResource(POSTCODES);
       String csv = Utilities.readResource(filename, true, true);
       List<? extends Map<String,String>> ziplist = SimpleCSV.parse(csv);
 
@@ -167,7 +170,7 @@ public class Location implements Serializable {
 
     socialDeterminantsOfHealth = new HashMap<String, Map<String, Double>>();
     try {
-      filename = Nation.Resource.SDOH.path(nation);
+      filename = nation.getResource(SDOH);
       String csv = Utilities.readResource(filename, true, true);
       List<? extends Map<String,String>> sdohList = SimpleCSV.parse(csv);
 
@@ -469,7 +472,7 @@ public class Location implements Serializable {
   }
 
   private static LinkedHashMap<String, String> stateAbbreviations(Nation nation) {
-    String filename = Nation.Resource.POSTCODES.path(nation);
+    String filename = nation.getResource(POSTCODES);
     return STATE_ABBREVIATIONS.computeIfAbsent(filename, Location::loadAbbreviations);
   }
 
@@ -593,7 +596,7 @@ public class Location implements Serializable {
    * @return The full name of the timezone (e.g. "Eastern Standard Time")
    */
   public static String getTimezoneByState(Nation nation, String state) {
-    String filename = Nation.Resource.TIMEZONES.path(nation);
+    String filename = nation.getResource(Nation.Resource.TIMEZONES);
     return TIMEZONES.computeIfAbsent(filename, Location::loadTimezones).get(state);
   }
 

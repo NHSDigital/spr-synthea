@@ -7,6 +7,15 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mitre.synthea.world.geography.Nation.Resource.DEMOGRAPHICS;
+import static org.mitre.synthea.world.geography.Nation.Resource.ETHNICITY;
+import static org.mitre.synthea.world.geography.Nation.Resource.HOSPICE;
+import static org.mitre.synthea.world.geography.Nation.Resource.NAMES;
+import static org.mitre.synthea.world.geography.Nation.Resource.NURSING;
+import static org.mitre.synthea.world.geography.Nation.Resource.PAYER_PLANS;
+import static org.mitre.synthea.world.geography.Nation.Resource.POSTCODES;
+import static org.mitre.synthea.world.geography.Nation.Resource.VETERANS;
+import static org.mitre.synthea.world.geography.Nation.Resource.VITAL_SIGN_SNOMED;
 
 import org.junit.After;
 import org.junit.Before;
@@ -103,14 +112,14 @@ public class NationTest {
     // England is configured, but USA resources are still available for the US nation
     assertEquals(Nation.ENGLAND, Nation.configured());
     assertEquals("geography/demographics.csv",
-        Nation.Resource.DEMOGRAPHICS.path(Nation.USA));
-    assertEquals("geography/zipcodes.csv", Nation.Resource.POSTCODES.path(Nation.USA));
-    assertEquals("names.yml", Nation.Resource.NAMES.path(Nation.USA));
-    assertEquals("providers/nursing.csv", Nation.Resource.NURSING.path(Nation.USA));
-    assertNull(Nation.Resource.ETHNICITY.path(Nation.USA));
-    assertNull(Nation.Resource.VITAL_SIGN_SNOMED.path(Nation.USA));
+        Nation.USA.getResource(DEMOGRAPHICS));
+    assertEquals("geography/zipcodes.csv", Nation.USA.getResource(POSTCODES));
+    assertEquals("names.yml", Nation.USA.getResource(NAMES));
+    assertEquals("providers/nursing.csv", Nation.USA.getResource(NURSING));
+    assertNull(Nation.USA.getResource(ETHNICITY));
+    assertNull(Nation.USA.getResource(VITAL_SIGN_SNOMED));
     assertNull(NationalEthnicity.of(Nation.USA));
-    assertEquals("geography/england/names.yml", Nation.Resource.NAMES.path(Nation.ENGLAND));
+    assertEquals("geography/england/names.yml", Nation.ENGLAND.getResource(NAMES));
     assertNotNull(NationalEthnicity.of(Nation.ENGLAND));
   }
 
@@ -118,27 +127,27 @@ public class NationTest {
   public void englandResourcesComeFromItsFolder() throws Exception {
     assertEquals("geography/england", Nation.ENGLAND.resourceFolder());
     for (Nation.Resource resource : Nation.Resource.values()) {
-      String path = resource.path(Nation.ENGLAND);
+      String path = Nation.ENGLAND.getResource(resource);
       if (path != null) {
         assertTrue(resource + ": " + path, path.startsWith("geography/england/"));
         assertNotNull(resource + " missing: " + path, Utilities.readResource(path));
       }
     }
     assertEquals("geography/england/postcodes.csv",
-        Nation.Resource.POSTCODES.path(Nation.ENGLAND));
+        Nation.ENGLAND.getResource(POSTCODES));
     assertEquals("geography/england/payers/insurance_plans.csv",
-        Nation.Resource.PAYER_PLANS.path(Nation.ENGLAND));
+        Nation.ENGLAND.getResource(PAYER_PLANS));
     // no England file: the provider type is not used
-    assertNull(Nation.Resource.NURSING.path(Nation.ENGLAND));
-    assertNull(Nation.Resource.VETERANS.path(Nation.ENGLAND));
+    assertNull(Nation.ENGLAND.getResource(NURSING));
+    assertNull(Nation.ENGLAND.getResource(VETERANS));
   }
 
   @Test
   public void configuredFileOverridesNationFolder() {
     Config.set(Nation.Resource.NAMES.configKey, "names.yml");
-    assertEquals("names.yml", Nation.Resource.NAMES.path(Nation.ENGLAND));
+    assertEquals("names.yml", Nation.ENGLAND.getResource(NAMES));
     Config.set(Nation.Resource.HOSPICE.configKey, " ");
-    assertNull("blank disables the resource", Nation.Resource.HOSPICE.path(Nation.ENGLAND));
+    assertNull("blank disables the resource", Nation.ENGLAND.getResource(HOSPICE));
   }
 
   @Test
@@ -172,16 +181,16 @@ public class NationTest {
 
   @Test
   public void resolutionIsCachedUntilConfigChanges() {
-    String names = Nation.Resource.NAMES.path(Nation.ENGLAND);
+    String names = Nation.ENGLAND.getResource(NAMES);
     assertSame("cached between config changes", names,
-        Nation.Resource.NAMES.path(Nation.ENGLAND));
+        Nation.ENGLAND.getResource(NAMES));
     long version = Config.version();
 
     Config.set(Nation.Resource.NAMES.configKey, "custom.yml");
     assertTrue(Config.version() > version);
-    assertEquals("custom.yml", Nation.Resource.NAMES.path(Nation.ENGLAND));
+    assertEquals("custom.yml", Nation.ENGLAND.getResource(NAMES));
     Config.remove(Nation.Resource.NAMES.configKey);
-    assertEquals("geography/england/names.yml", Nation.Resource.NAMES.path(Nation.ENGLAND));
+    assertEquals("geography/england/names.yml", Nation.ENGLAND.getResource(NAMES));
   }
 
   @Test

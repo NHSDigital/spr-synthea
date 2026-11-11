@@ -1,5 +1,7 @@
 package org.mitre.synthea.world.geography;
 
+import static org.mitre.synthea.world.geography.Nation.Resource.DEMOGRAPHICS;
+
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 
@@ -441,7 +443,7 @@ public class Demographics implements Comparable<Demographics>, Serializable {
    */
   public static Table<String, String, Demographics> load(Nation nation, String state)
       throws IOException {
-    String filename = Nation.Resource.DEMOGRAPHICS.path(nation);
+    String filename = nation.getResource(DEMOGRAPHICS);
     NationalEthnicity ethnicity = NationalEthnicity.of(nation);
     String csv = Utilities.readResource(filename, true, true);
 

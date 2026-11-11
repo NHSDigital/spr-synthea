@@ -1,5 +1,7 @@
 package org.mitre.synthea.export;
 
+import static org.mitre.synthea.world.geography.Nation.Resource.VITAL_SIGN_SNOMED;
+
 import ca.uhn.fhir.context.FhirContext;
 
 import com.google.common.collect.HashBasedTable;
@@ -1947,7 +1949,7 @@ public class FhirR4 {
    * @return map of LOINC code to SNOMED CT code; empty if the nation has no mappings.
    */
   protected static Map<String, Code> vitalSignSnomed(Nation nation) {
-    String path = Nation.Resource.VITAL_SIGN_SNOMED.path(nation);
+    String path = nation.getResource(VITAL_SIGN_SNOMED);
     if (path == null) {
       return Collections.emptyMap();
     }

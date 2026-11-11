@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mitre.synthea.world.geography.Nation.Resource.DEMOGRAPHICS;
+import static org.mitre.synthea.world.geography.Nation.Resource.POSTCODES;
 
 import com.google.common.collect.Table;
 
@@ -41,8 +43,8 @@ public class EnglandGeographyTest {
   public static void useEngland() throws Exception {
     EnglandTestConfig.apply();
     assertEquals("geography/england/demographics.csv",
-        Nation.Resource.DEMOGRAPHICS.path(Nation.ENGLAND));
-    assertEquals("geography/england/postcodes.csv", Nation.Resource.POSTCODES.path(Nation.ENGLAND));
+        Nation.ENGLAND.getResource(DEMOGRAPHICS));
+    assertEquals("geography/england/postcodes.csv", Nation.ENGLAND.getResource(POSTCODES));
     location = new Location(Nation.ENGLAND, REGION, null);
     demographics = Demographics.load(Nation.ENGLAND, REGION);
   }

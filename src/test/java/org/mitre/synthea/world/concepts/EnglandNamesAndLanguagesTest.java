@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mitre.synthea.world.geography.Nation.Resource.NAMES;
 
 import com.google.gson.Gson;
 
@@ -39,7 +40,7 @@ public class EnglandNamesAndLanguagesTest {
   @BeforeClass
   public static void useEngland() throws Exception {
     EnglandTestConfig.apply();
-    assertEquals("geography/england/names.yml", Nation.Resource.NAMES.path(Nation.ENGLAND));
+    assertEquals("geography/england/names.yml", Nation.ENGLAND.getResource(NAMES));
     Names.reloadNames();
     ukNames = new SimpleYML(Utilities.readResource("geography/england/names.yml"));
     england = NationalEthnicity.of(Nation.ENGLAND);

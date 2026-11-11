@@ -1,5 +1,7 @@
 package org.mitre.synthea.world.concepts;
 
+import static org.mitre.synthea.world.geography.Nation.Resource.NAMES;
+
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -34,7 +36,7 @@ public class Names {
    * The names file of a person's nation (see {@link Person#getNation()}).
    */
   private static NamesFile namesFile(Person person) {
-    return NAMES_FILES.computeIfAbsent(Nation.Resource.NAMES.path(person.getNation()),
+    return NAMES_FILES.computeIfAbsent(person.getNation().getResource(NAMES),
         NamesFile::load);
   }
 

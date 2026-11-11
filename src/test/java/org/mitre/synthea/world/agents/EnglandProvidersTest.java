@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mitre.synthea.world.geography.Nation.Resource.HOSPITALS;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -53,7 +54,7 @@ public class EnglandProvidersTest {
     assertEquals(Nation.ENGLAND, Nation.configured());
     assertEquals(REGION, Nation.ENGLAND.defaultState());
     assertEquals("geography/england/providers/hospitals.csv",
-        Nation.Resource.HOSPITALS.path(Nation.ENGLAND));
+        Nation.ENGLAND.getResource(HOSPITALS));
     location = new Location(Nation.ENGLAND, REGION, null);
   }
 

@@ -1,5 +1,9 @@
 package org.mitre.synthea.world.agents;
 
+import static org.mitre.synthea.world.geography.Nation.Resource.PAYERS;
+import static org.mitre.synthea.world.geography.Nation.Resource.PAYER_ELIGIBILITIES;
+import static org.mitre.synthea.world.geography.Nation.Resource.PAYER_PLANS;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -96,7 +100,7 @@ public class PayerManager {
   public static void loadPayers(Location location) {
     Nation nation = location.getNation();
     // Load the plan eligibility algorithms.
-    String eligibilitiesFile = Nation.Resource.PAYER_ELIGIBILITIES.path(nation);
+    String eligibilitiesFile = nation.getResource(PAYER_ELIGIBILITIES);
     PlanEligibilityFinder.buildPlanEligibilities(location.state, eligibilitiesFile);
 
     // Build the Plan Finder.
@@ -105,7 +109,7 @@ public class PayerManager {
         || !statesLoaded.contains(Location.getAbbreviation(nation, location.state))
         || !statesLoaded.contains(Location.getStateName(nation, location.state))) {
       try {
-        String payerFile = Nation.Resource.PAYERS.path(nation);
+        String payerFile = nation.getResource(PAYERS);
         loadPayers(location, payerFile);
 
         statesLoaded.add(location.state);
@@ -152,7 +156,7 @@ public class PayerManager {
   }
 
   private static void loadPlans(Nation nation) {
-    String fileName = Nation.Resource.PAYER_PLANS.path(nation);
+    String fileName = nation.getResource(PAYER_PLANS);
     Iterator<? extends Map<String, String>> csv = null;
     try {
       String resource = Utilities.readResource(fileName, true, true);

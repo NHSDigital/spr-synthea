@@ -43,7 +43,8 @@ public enum Nation {
   private final String defaultState;
   private final String notImplementedReason;
   /**
-   * This nation's resource paths, cached until the configuration changes; see {@link #paths()}.
+   * This nation's resource paths, cached until the configuration changes; see
+   * {@link #getResource(Resource)}.
    */
   private volatile ResolvedPaths resolvedPaths;
 
@@ -159,6 +160,15 @@ public enum Nation {
     }
   }
 
+  /**
+   * The path of one of this nation's resources, e.g. {@code nation.getResource(ETHNICITY)}.
+   * @param resource the resource.
+   * @return the classpath or file path, or null if this nation has no such resource.
+   */
+  public String getResource(Resource resource) {
+    return paths().paths[resource.ordinal()];
+  }
+
   /** The resource folder for this nation, e.g. "geography/england", or null for USA. */
   public String resourceFolder() {
     return folder == null ? null : "geography/" + folder;
@@ -219,15 +229,6 @@ public enum Nation {
       this.configKey = configKey;
       this.upstreamPath = upstreamPath;
       this.nationFile = nationFile;
-    }
-
-    /**
-     * The path of this resource for the given nation.
-     * @param nation the nation.
-     * @return the path, or null if the nation has no such resource.
-     */
-    public String path(Nation nation) {
-      return nation.paths().paths[ordinal()];
     }
 
     private String resolve(Nation nation) {
