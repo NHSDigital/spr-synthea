@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.mitre.synthea.export.JSONSkip;
 import org.mitre.synthea.helpers.Config;
@@ -119,6 +120,11 @@ public class Provider implements QuadTreeElement, Serializable {
   private static Set<String> statesLoaded = new HashSet<String>();
   /** Count of providers loaded. */
   private static int loaded = 0;
+  /**
+   * The next clinician identifier. Clinicians are numbered in load order, so every clinician has
+   * a distinct identifier and therefore a distinct NPI (see Clinician#toClinicianNPI).
+   */
+  private static final AtomicLong nextClinicianIdentifier = new AtomicLong();
 
   private static final double MAX_PROVIDER_SEARCH_DISTANCE =
       Config.getAsDouble("generate.providers.maximum_search_distance", 2);
@@ -479,6 +485,7 @@ public class Provider implements QuadTreeElement, Serializable {
     providerMap = generateQuadTree();
     providerFinder = buildProviderFinder();
     loaded = 0;
+    nextClinicianIdentifier.set(0);
   }
 
   /**
@@ -670,13 +677,9 @@ public class Provider implements QuadTreeElement, Serializable {
   private ArrayList<Clinician> generateClinicianList(int numClinicians, String specialty,
       RandomNumberGenerator random) {
     ArrayList<Clinician> clinicians = new ArrayList<Clinician>();
-    // Offset by clinicians already generated for other specialties at this provider so that
-    // each clinician gets a distinct identity (ID, name and NPI).
-    int offset = clinicianMap.values().stream().mapToInt(ArrayList::size).sum();
     for (int i = 0; i < numClinicians; i++) {
-      Clinician clinician = null;
-      clinician = generateClinician(random.getSeed(),
-          Long.parseLong(loaded + "" + (offset + i)), random);
+      Clinician clinician = generateClinician(random.getSeed(),
+          nextClinicianIdentifier.getAndIncrement(), random);
       clinician.attributes.put(Clinician.SPECIALTY, specialty);
       clinicians.add(clinician);
     }
