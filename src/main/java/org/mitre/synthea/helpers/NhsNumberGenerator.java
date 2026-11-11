@@ -19,7 +19,9 @@ import java.util.function.Supplier;
  *   digits are random.</li>
  *   <li>Sequential: if {@code generate.patient.nhs_number.range.start} and
  *   {@code generate.patient.nhs_number.range.end} are set, roots are allocated in order from
- *   that inclusive range and an {@link IllegalStateException} is thrown when it is exhausted.</li>
+ *   that inclusive range and an {@link IllegalStateException} is thrown when it is exhausted.
+ *   Setting only one bound, or bounds outside 0 &lt;= start &lt;= end &lt;= 999999999, is an
+ *   error.</li>
  * </ul>
  *
  * <p>Every number handed out by an instance is unique for the lifetime of that instance.</p>
@@ -27,6 +29,9 @@ import java.util.function.Supplier;
 public class NhsNumberGenerator {
   public static final String NHS_NUMBER_SYSTEM = "https://fhir.nhs.uk/Id/nhs-number";
   private static final long MAX_ROOT = 999_999_999L;
+  private static final String RANGE_START_KEY = "generate.patient.nhs_number.range.start";
+  private static final String RANGE_END_KEY = "generate.patient.nhs_number.range.end";
+  private static final long UNSET = -1L;
 
   private static volatile NhsNumberGenerator instance;
 
@@ -40,13 +45,24 @@ public class NhsNumberGenerator {
    * Create a new generator, reading the prefix and optional range from the Config.
    */
   public NhsNumberGenerator() {
-    long rangeStart = Config.getAsLong("generate.patient.nhs_number.range.start", -1L);
-    this.rangeEnd = Config.getAsLong("generate.patient.nhs_number.range.end", -1L);
-    if (rangeStart > MAX_ROOT || rangeEnd > MAX_ROOT) {
-      throw new IllegalArgumentException("NHS number ranges must be between 0 and 999999999");
+    long rangeStart = Config.getAsLong(RANGE_START_KEY, UNSET);
+    long rangeEnd = Config.getAsLong(RANGE_END_KEY, UNSET);
+    if (rangeStart == UNSET && rangeEnd == UNSET) {
+      this.rangeEnd = UNSET;
+      this.rangeCounter = null;
+    } else {
+      if (rangeStart == UNSET || rangeEnd == UNSET) {
+        throw new IllegalArgumentException("Set both " + RANGE_START_KEY + " and "
+            + RANGE_END_KEY + " to allocate NHS numbers from a range, or neither");
+      }
+      if (rangeStart < 0 || rangeEnd > MAX_ROOT || rangeStart > rangeEnd) {
+        throw new IllegalArgumentException("Invalid NHS number range " + rangeStart + "-"
+            + rangeEnd + ": need 0 <= " + RANGE_START_KEY + " <= " + RANGE_END_KEY
+            + " <= " + MAX_ROOT);
+      }
+      this.rangeEnd = rangeEnd;
+      this.rangeCounter = new AtomicLong(rangeStart);
     }
-    this.rangeCounter =
-        (rangeStart >= 0 && rangeEnd >= rangeStart) ? new AtomicLong(rangeStart) : null;
     this.prefix = Config.getAsInteger("generate.patient.nhs_number_prefix", 9);
     if (prefix < 0 || prefix > 9) {
       throw new IllegalArgumentException("NHS number prefix must be a single digit");
