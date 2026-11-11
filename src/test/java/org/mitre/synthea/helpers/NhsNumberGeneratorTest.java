@@ -107,6 +107,36 @@ public class NhsNumberGeneratorTest {
   }
 
   @Test
+  public void incompleteOrInvalidRangesAreRejected() {
+    String[][] ranges = {{"900000000", null}, {null, "900000000"}, {"900000010", "900000000"},
+        {"-1", "5"}, {"abc", "900000000"}};
+    for (String[] range : ranges) {
+      Config.remove("generate.patient.nhs_number.range.start");
+      Config.remove("generate.patient.nhs_number.range.end");
+      if (range[0] != null) {
+        Config.set("generate.patient.nhs_number.range.start", range[0]);
+      }
+      if (range[1] != null) {
+        Config.set("generate.patient.nhs_number.range.end", range[1]);
+      }
+      assertThrows(range[0] + "-" + range[1], IllegalArgumentException.class,
+          NhsNumberGenerator::new);
+    }
+  }
+
+  @Test
+  public void singleRootRangeAndBlankBoundsAreAccepted() {
+    Config.set("generate.patient.nhs_number.range.start", "900000004");
+    Config.set("generate.patient.nhs_number.range.end", "900000004");
+    assertEquals("9000000041",
+        new NhsNumberGenerator().randomNhsNumber(new DefaultRandomNumberGenerator(1)));
+    Config.set("generate.patient.nhs_number.range.start", " ");
+    Config.set("generate.patient.nhs_number.range.end", "");
+    assertTrue(new NhsNumberGenerator().randomNhsNumber(new DefaultRandomNumberGenerator(1))
+        .startsWith("9"));
+  }
+
+  @Test
   public void rangeBeyondNineDigitsIsRejected() {
     Config.set("generate.patient.nhs_number.range.start", "0");
     Config.set("generate.patient.nhs_number.range.end", "1000000000");
