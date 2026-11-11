@@ -717,7 +717,18 @@ public abstract class Exporter {
       TransitionMetrics.exportMetrics();
     }
 
-    if (Config.getAsBoolean("exporter.fhir.bulk_data")) {
+    boolean compressed = Config.getAsBoolean("exporter.fhir.compress_data", false);
+    if (Config.getAsBoolean("exporter.fhir.bulk_data") && compressed) {
+      // Compressed ndjson is one mixed-type file per patient, so it cannot be described by a
+      // bulk-import manifest, which types each input file by resource type.
+      File staleManifest = new File(getOutputFolder("fhir", null), "parameters.json");
+      if (staleManifest.delete()) {
+        System.out.println("Removed stale " + staleManifest);
+      }
+      System.out.println("Skipping FHIR bulk import parameters.json: compressed per-patient"
+          + " ndjson files mix resource types. Set exporter.fhir.compress_data = false to"
+          + " write per-resource-type ndjson files and the manifest.");
+    } else if (Config.getAsBoolean("exporter.fhir.bulk_data")) {
       IParser parser = FhirR4.getContext().newJsonParser();
       parser.setPrettyPrint(false);
       Parameters parameters = new Parameters()

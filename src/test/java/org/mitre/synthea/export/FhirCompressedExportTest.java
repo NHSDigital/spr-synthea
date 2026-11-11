@@ -1,6 +1,7 @@
 package org.mitre.synthea.export;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import ca.uhn.fhir.parser.IParser;
@@ -115,6 +116,40 @@ public class FhirCompressedExportTest {
       long patients = resources.stream().filter(r -> r instanceof Patient).count();
       assertEquals(1, patients);
     }
+  }
+
+  @Test
+  public void testCompressedNdjsonExportWritesNoManifest() throws Exception {
+    Config.set("exporter.fhir.compress_data", "true");
+    Config.set("exporter.fhir.bulk_data", "true");
+    File stale = new File(new File(outputFolder, "fhir"), "parameters.json");
+    stale.getParentFile().mkdirs();
+    Files.write(stale.toPath(), "{}".getBytes(StandardCharsets.UTF_8));
+    Generator generator = new Generator(1);
+    generator.options.overflow = false;
+    generator.generatePerson(0);
+
+    Exporter.runPostCompletionExports(generator);
+
+    assertFalse("mixed-type files must not be listed in a manifest", stale.exists());
+    File[] files = new File(outputFolder, "fhir").listFiles();
+    assertEquals(1, files.length);
+    assertTrue(files[0].getName(), files[0].getName().endsWith(".ndjson.gz"));
+  }
+
+  @Test
+  public void testUncompressedNdjsonExportWritesManifest() throws Exception {
+    Config.set("exporter.fhir.bulk_data", "true");
+    Generator generator = new Generator(1);
+    generator.options.overflow = false;
+    generator.generatePerson(0);
+
+    Exporter.runPostCompletionExports(generator);
+
+    String manifest = new String(Files.readAllBytes(
+        new File(new File(outputFolder, "fhir"), "parameters.json").toPath()),
+        StandardCharsets.UTF_8);
+    assertTrue(manifest, manifest.contains("Patient.ndjson"));
   }
 
   @Test
