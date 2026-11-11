@@ -1,5 +1,6 @@
 {
   "name": "Pregnancy",
+  "specialty": "CERTIFIED NURSE MIDWIFE",
   "remarks": [
     "Whenever a female becomes pregnant, the 'pregnant' attribute is set to true ",
     "by the Female Reproduction module. The likelihood of becoming pregnant is ",
@@ -7,8 +8,10 @@
     "and contraceptive use.",
     "Some notable complications NOT modeled in this module:",
     "1. Maternal death (very low incidence in developed countries)",
-    "2. Gestational diabetes (because of the complex interplay with the diabetes module)",
-    "3. Tobacco, drug, or alcohol use during pregnancy"
+    "2. Tobacco, drug, or alcohol use during pregnancy",
+    "Gestational diabetes is modelled as a simple pregnancy-limited condition (risk-based",
+    "OGTT at 24-28 weeks per NICE NG3) that does not interact with the diabetes module.",
+    "Women with an active history of thrombosis follow a VTE prevention care plan."
   ],
   "states": {
     "Initial": {
@@ -46,7 +49,7 @@
         "operator": "==",
         "value": true
       },
-      "direct_transition": "Become_Pregnant"
+      "direct_transition": "Delay_Six_Weeks_Till_Possible_Pregnancy"
     },
     "Become_Pregnant": {
       "type": "ConditionOnset",
@@ -64,31 +67,6 @@
         }
       ],
       "direct_transition": "Pregnancy_Status_Observation"
-    },
-    "Pregnancy_Status_Observation": {
-      "type": "Observation",
-      "codes": [
-        {
-          "system": "LOINC",
-          "code": "82810-3",
-          "display": "Pregnancy status"
-        }
-      ],
-      "category": "social-history",
-      "value_code": {
-        "system": "SNOMED-CT",
-        "code": "77386006",
-        "display": "Pregnant"
-      },
-      "direct_transition": "Delay_Eight_Weeks"
-    },
-    "Delay_Eight_Weeks": {
-      "type": "Delay",
-      "exact": {
-        "quantity": 8,
-        "unit": "weeks"
-      },
-      "direct_transition": "Prenatal_Initial_Visit"
     },
     "Prenatal_Initial_Visit": {
       "type": "Encounter",
@@ -301,6 +279,7 @@
     },
     "Pregnancy_CarePlan": {
       "type": "CarePlanStart",
+      "title": "Pregnancy Care Plan",
       "reason": "Become_Pregnant",
       "remarks": [
         "There are MANY activities that could be associated with a pregnancy care plan.",
@@ -548,7 +527,24 @@
           "display": "Physical examination procedure (procedure)"
         }
       ],
-      "direct_transition": "End_Prenatal_Initial_Visit"
+      "conditional_transition": [
+        {
+          "transition": "VTE_Risk_Assessment_Initial_Visit",
+          "condition": {
+            "condition_type": "Active CarePlan",
+            "codes": [
+              {
+                "system": "SNOMED-CT",
+                "code": "787331000000107",
+                "display": "Venous thromboembolism prevention management (procedure)"
+              }
+            ]
+          }
+        },
+        {
+          "transition": "End_Prenatal_Initial_Visit"
+        }
+      ]
     },
     "End_Initial_Visit_Towards_Abortion": {
       "type": "EncounterEnd",
@@ -651,11 +647,37 @@
           "display": "Detection of chromosomal aneuploidy in prenatal amniotic fluid specimen using fluorescence in situ hybridization screening technique (procedure)"
         }
       ],
-      "direct_transition": "End_Week_12_Visit"
+      "conditional_transition": [
+        {
+          "transition": "VTE_Risk_Assessment_12_Week_Visit",
+          "condition": {
+            "condition_type": "Active CarePlan",
+            "codes": [
+              {
+                "system": "SNOMED-CT",
+                "code": "787331000000107",
+                "display": "Venous thromboembolism prevention management (procedure)"
+              }
+            ]
+          }
+        },
+        {
+          "transition": "End_Week_12_Visit"
+        }
+      ]
     },
     "End_Week_12_Visit": {
       "type": "EncounterEnd",
-      "direct_transition": "Week_16"
+      "distributed_transition": [
+        {
+          "transition": "Week_16",
+          "distribution": 0.985
+        },
+        {
+          "transition": "HG_Encounter",
+          "distribution": 0.015
+        }
+      ]
     },
     "Week_16": {
       "type": "Delay",
@@ -841,7 +863,16 @@
     },
     "End_Week_24_Visit": {
       "type": "EncounterEnd",
-      "direct_transition": "Week_28"
+      "distributed_transition": [
+        {
+          "transition": "Week_28",
+          "distribution": 0.65
+        },
+        {
+          "transition": "GDM_Encounter",
+          "distribution": 0.35
+        }
+      ]
     },
     "Week_28": {
       "type": "Delay",
@@ -923,19 +954,27 @@
           "display": "Administration of vaccine product containing only Bordetella pertussis and Clostridium tetani and Corynebacterium diphtheriae antigens (procedure)"
         }
       ],
-      "direct_transition": "Glucose_Screen"
+      "direct_transition": "Week_28_Fundal_Height"
     },
-    "Glucose_Screen": {
+    "Glucose_Test": {
       "type": "Procedure",
-      "reason": "Become_Pregnant",
       "codes": [
         {
           "system": "SNOMED-CT",
-          "code": "268556000",
-          "display": "Urine screening for glucose (procedure)"
+          "code": "113076002",
+          "display": "Glucose tolerance test (procedure)"
         }
       ],
-      "direct_transition": "Week_28_Fundal_Height"
+      "distributed_transition": [
+        {
+          "transition": "GDM_Onset",
+          "distribution": 0.13
+        },
+        {
+          "transition": "End_GDM_Encounter",
+          "distribution": 0.87
+        }
+      ]
     },
     "Week_28_Fundal_Height": {
       "type": "Procedure",
@@ -1141,7 +1180,24 @@
           "display": "Auscultation of the fetal heart (procedure)"
         }
       ],
-      "direct_transition": "End_Week_36_Visit"
+      "conditional_transition": [
+        {
+          "transition": "VTE_Risk_Assessment_36_Week_Visit",
+          "condition": {
+            "condition_type": "Active CarePlan",
+            "codes": [
+              {
+                "system": "SNOMED-CT",
+                "code": "787331000000107",
+                "display": "Venous thromboembolism prevention management (procedure)"
+              }
+            ]
+          }
+        },
+        {
+          "transition": "End_Week_36_Visit"
+        }
+      ]
     },
     "End_Week_36_Visit": {
       "type": "EncounterEnd",
@@ -2126,7 +2182,7 @@
     },
     "End_Birth_Encounter": {
       "type": "EncounterEnd",
-      "direct_transition": "Normal_Pregnancy_Ends"
+      "direct_transition": "GDM_Ends"
     },
     "Normal_Pregnancy_Ends": {
       "type": "ConditionEnd",
@@ -2229,7 +2285,7 @@
       "type": "SetAttribute",
       "attribute": "pregnant",
       "value": false,
-      "direct_transition": "Become_Pregnant_Guard"
+      "direct_transition": "End_VTE_CarePlan"
     },
     "Terminal": {
       "type": "Terminal"
@@ -2359,6 +2415,264 @@
         }
       ],
       "direct_transition": "End_Miscarriage_Followup_Encounter"
+    },
+    "HG_Onset": {
+      "type": "ConditionOnset",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "14094001",
+          "display": "Excessive vomiting in pregnancy (disorder)"
+        }
+      ],
+      "direct_transition": "End_HG_Encounter",
+      "target_encounter": "HG_Encounter",
+      "remarks": [
+        "Hyperemesis gravidarum affects roughly 0.3-3.6% of pregnancies and typically presents in the first trimester."
+      ]
+    },
+    "Possible_Pregnancy": {
+      "type": "Simple",
+      "remarks": [
+        "Pregnancy is typically recognised around 6 weeks gestation. Women with a history of",
+        "thrombosis are seen early for venous thromboembolism (VTE) risk assessment (RCOG Green-top 37a)."
+      ],
+      "conditional_transition": [
+        {
+          "transition": "VTE_RISK_6_Week_Encounter",
+          "condition": {
+            "condition_type": "Active Condition",
+            "codes": [
+              {
+                "system": "SNOMED-CT",
+                "code": "275546001",
+                "display": "History of thrombosis (situation)"
+              }
+            ]
+          }
+        },
+        {
+          "transition": "Become_Pregnant"
+        }
+      ]
+    },
+    "Delay_Two_Weeks": {
+      "type": "Delay",
+      "exact": {
+        "quantity": 2,
+        "unit": "weeks"
+      },
+      "direct_transition": "Prenatal_Initial_Visit"
+    },
+    "Delay_Six_Weeks_Till_Possible_Pregnancy": {
+      "type": "Delay",
+      "distribution": {
+        "kind": "EXACT",
+        "parameters": {
+          "value": 6
+        }
+      },
+      "unit": "weeks",
+      "direct_transition": "Possible_Pregnancy"
+    },
+    "VTE_CarePlan": {
+      "type": "CarePlanStart",
+      "title": "VTE Risk Management Care Plan",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "787331000000107",
+          "display": "Venous thromboembolism prevention management (procedure)"
+        }
+      ],
+      "direct_transition": "VTE_Risk_6_Week_Encounter_End",
+      "goals": [],
+      "activities": [
+        {
+          "system": "SNOMED-CT",
+          "code": "223488008",
+          "display": "Discussion about changes in lifestyle (procedure)"
+        },
+        {
+          "system": "SNOMED-CT",
+          "code": "385790000",
+          "display": "Injection administration education (procedure)"
+        },
+        {
+          "system": "SNOMED-CT",
+          "code": "443749004",
+          "display": "Assessment of risk of venous thromboembolism (procedure)"
+        }
+      ],
+      "reason": "VTE_At_High_Risk",
+      "assign_to_attribute": "high_risk_pregnancy_vte"
+    },
+    "VTE_Risk_Assessment_Initial_Visit": {
+      "type": "Procedure",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "443749004",
+          "display": "Assessment of risk of venous thromboembolism (procedure)"
+        }
+      ],
+      "direct_transition": "End_Prenatal_Initial_Visit",
+      "reason": "VTE_At_High_Risk"
+    },
+    "VTE_Risk_Assessment_36_Week_Visit": {
+      "type": "Procedure",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "443749004",
+          "display": "Assessment of risk of venous thromboembolism (procedure)"
+        }
+      ],
+      "direct_transition": "End_Week_36_Visit",
+      "reason": "VTE_At_High_Risk"
+    },
+    "VTE_Risk_6_Week_Encounter_End": {
+      "type": "EncounterEnd",
+      "direct_transition": "Become_Pregnant"
+    },
+    "VTE_RISK_6_Week_Encounter": {
+      "type": "Encounter",
+      "encounter_class": "home",
+      "telemedicine_possibility": "possible",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "185347001",
+          "display": "Encounter for problem (procedure)"
+        }
+      ],
+      "direct_transition": "VTE_At_High_Risk",
+      "reason": "history_of_thrombosis"
+    },
+    "VTE_Risk_Assessment_12_Week_Visit": {
+      "type": "Procedure",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "443749004",
+          "display": "Assessment of risk of venous thromboembolism (procedure)"
+        }
+      ],
+      "direct_transition": "End_Week_12_Visit",
+      "reason": "VTE_At_High_Risk"
+    },
+    "HG_Encounter": {
+      "type": "Encounter",
+      "telemedicine_possibility": "none",
+      "direct_transition": "HG_Onset",
+      "specialty": "GENERAL PRACTICE",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "185347001",
+          "display": "Encounter for problem (procedure)"
+        }
+      ],
+      "encounter_class": "urgentcare"
+    },
+    "End_HG_Encounter": {
+      "type": "EncounterEnd",
+      "direct_transition": "Week_16"
+    },
+    "GDM_Encounter": {
+      "type": "Encounter",
+      "encounter_class": "ambulatory",
+      "telemedicine_possibility": "none",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "185347001",
+          "display": "Encounter for problem (procedure)"
+        }
+      ],
+      "direct_transition": "Glucose_Test",
+      "remarks": [
+        "NICE NG3 recommends a 75g oral glucose tolerance test at 24-28 weeks for women with risk factors",
+        "for gestational diabetes (BMI > 30, previous GDM, family history, high-risk ethnicity)."
+      ]
+    },
+    "End_GDM_Encounter": {
+      "type": "EncounterEnd",
+      "direct_transition": "Week_28"
+    },
+    "GDM_Onset": {
+      "type": "ConditionOnset",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "11687002",
+          "display": "Gestational diabetes mellitus (disorder)"
+        }
+      ],
+      "direct_transition": "End_GDM_Encounter",
+      "target_encounter": "GDM_Encounter"
+    },
+    "Pregnancy_Status_Observation": {
+      "type": "Observation",
+      "codes": [
+        {
+          "system": "LOINC",
+          "code": "82810-3",
+          "display": "Pregnancy status"
+        }
+      ],
+      "category": "social-history",
+      "value_code": {
+        "system": "SNOMED-CT",
+        "code": "77386006",
+        "display": "Pregnant"
+      },
+      "direct_transition": "Delay_Two_Weeks"
+    },
+    "VTE_At_High_Risk": {
+      "type": "ConditionOnset",
+      "target_encounter": "VTE_RISK_6_Week_Encounter",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "711328005",
+          "display": "At high risk of venous thromboembolism (finding)"
+        }
+      ],
+      "direct_transition": "VTE_CarePlan"
+    },
+    "End_VTE_CarePlan": {
+      "type": "CarePlanEnd",
+      "careplan": "VTE_CarePlan",
+      "direct_transition": "End_VTE_At_High_Risk"
+    },
+    "End_VTE_At_High_Risk": {
+      "type": "ConditionEnd",
+      "condition_onset": "VTE_At_High_Risk",
+      "direct_transition": "End_Pregnancy_GDM"
+    },
+    "GDM_Ends": {
+      "type": "ConditionEnd",
+      "condition_onset": "GDM_Onset",
+      "direct_transition": "HG_Ends"
+    },
+    "HG_Ends": {
+      "type": "ConditionEnd",
+      "condition_onset": "HG_Onset",
+      "direct_transition": "Normal_Pregnancy_Ends"
+    },
+    "End_Pregnancy_GDM": {
+      "type": "ConditionEnd",
+      "remarks": [
+        "Pregnancy-limited conditions end with the pregnancy, whatever its outcome."
+      ],
+      "condition_onset": "GDM_Onset",
+      "direct_transition": "End_Pregnancy_HG"
+    },
+    "End_Pregnancy_HG": {
+      "type": "ConditionEnd",
+      "condition_onset": "HG_Onset",
+      "direct_transition": "Become_Pregnant_Guard"
     }
   },
   "gmf_version": 1

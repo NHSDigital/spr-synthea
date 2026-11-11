@@ -7,6 +7,7 @@ import com.google.common.collect.Table;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.awt.geom.Point2D;
 import java.io.IOException;
@@ -164,6 +165,8 @@ import org.mitre.synthea.world.concepts.HealthRecord.Observation;
 import org.mitre.synthea.world.concepts.HealthRecord.Procedure;
 import org.mitre.synthea.world.concepts.HealthRecord.Report;
 import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
+import org.mitre.synthea.world.geography.NationalEthnicity;
 
 public class FhirR4 {
   // HAPI FHIR warns that the context creation is expensive, and should be performed
@@ -191,6 +194,19 @@ public class FhirR4 {
 
   protected static boolean USE_US_CORE_IG =
       Config.getAsBoolean("exporter.fhir.use_us_core_ig");
+  protected static boolean USE_UK_CORE_IG =
+      Config.getAsBoolean("exporter.fhir.use_uk_core_ig", false);
+
+  protected static final String NHS_NUMBER_SYSTEM = "https://fhir.nhs.uk/Id/nhs-number";
+  protected static final String UK_CORE_NHS_NUMBER_VERIFICATION_STATUS =
+      "https://fhir.hl7.org.uk/StructureDefinition/Extension-UKCore-NHSNumberVerificationStatus";
+  protected static final String UK_CORE_NHS_NUMBER_VERIFICATION_STATUS_SYSTEM =
+      "https://fhir.hl7.org.uk/CodeSystem/UKCore-NHSNumberVerificationStatusEngland";
+  protected static final String UK_CORE_ETHNIC_CATEGORY =
+      "https://fhir.hl7.org.uk/StructureDefinition/Extension-UKCore-EthnicCategory";
+  private static final Map<String, Map<String, Code>> VITAL_SIGN_SNOMED_CACHE =
+      new java.util.concurrent.ConcurrentHashMap<>();
+
   protected static String US_CORE_VERSION =
       Config.get("exporter.fhir.us_core_version", "6.1.0");
 
@@ -245,8 +261,13 @@ public class FhirR4 {
     return useUSCore7;
   }
 
-  private static final String COUNTRY_CODE = Config.get("generate.geography.country_code");
-  private static final String PASSPORT_URI = Config.get("generate.geography.passport_uri", "http://hl7.org/fhir/sid/passport-USA");
+  private static String countryCode() {
+    return Nation.isoCountryCode();
+  }
+
+  private static String passportUri() {
+    return Nation.passportUri();
+  }
 
   private static final HashSet<Class<? extends Resource>> includedResources = new HashSet<>();
   private static final HashSet<Class<? extends Resource>> excludedResources = new HashSet<>();
@@ -522,7 +543,90 @@ public class FhirR4 {
       // Add Provenance to the Bundle
       provenance(bundle, person, stopTime);
     }
+
+    linkProceduresToCarePlans(person, bundle);
+    if (USE_UK_CORE_IG) {
+      addNhsNumberToPatientReferences(person, personEntry, bundle);
+    }
     return bundle;
+  }
+
+  /**
+   * Populate Procedure.basedOn for procedures that name the care plans they are carried out
+   * under. Each code is linked to the person's most recently started CarePlan with that code
+   * that is active when the procedure starts.
+   */
+  private static void linkProceduresToCarePlans(Person person, Bundle bundle) {
+    Map<String, BundleEntryComponent> entriesById = null;
+    for (Encounter encounter : person.record.encounters) {
+      for (Procedure procedure : encounter.procedures) {
+        if (procedure.codesBasedOn == null || procedure.codesBasedOn.isEmpty()) {
+          continue;
+        }
+        if (entriesById == null) {
+          entriesById = new HashMap<>();
+          for (BundleEntryComponent entry : bundle.getEntry()) {
+            entriesById.put(entry.getResource().fhirType() + "/"
+                + entry.getResource().getIdElement().getIdPart(), entry);
+          }
+        }
+        BundleEntryComponent procedureEntry =
+            entriesById.get("Procedure/" + procedure.uuid.toString());
+        if (procedureEntry == null) {
+          continue;
+        }
+        org.hl7.fhir.r4.model.Procedure procedureResource =
+            (org.hl7.fhir.r4.model.Procedure) procedureEntry.getResource();
+        for (Code code : procedure.codesBasedOn) {
+          CarePlan plan = findActiveCarePlan(person, code.code, procedure.start);
+          if (plan == null) {
+            continue;
+          }
+          BundleEntryComponent planEntry = entriesById.get("CarePlan/" + plan.uuid.toString());
+          if (planEntry != null) {
+            procedureResource.addBasedOn(new Reference(planEntry.getFullUrl()));
+          }
+        }
+      }
+    }
+  }
+
+  private static CarePlan findActiveCarePlan(Person person, String code, long time) {
+    CarePlan found = null;
+    for (Encounter encounter : person.record.encounters) {
+      for (CarePlan plan : encounter.careplans) {
+        boolean active = plan.start <= time && (plan.stop == 0L || plan.stop >= time);
+        if (active && plan.codes.stream().anyMatch(c -> code.equals(c.code))
+            && (found == null || plan.start >= found.start)) {
+          found = plan;
+        }
+      }
+    }
+    return found;
+  }
+
+  /**
+   * Add the NHS number as a logical identifier alongside every literal reference to the
+   * Patient, so that resources can be matched to the patient without resolving the Bundle.
+   */
+  private static void addNhsNumberToPatientReferences(Person person,
+      BundleEntryComponent personEntry, Bundle bundle) {
+    String nhsNumber = (String) person.attributes.get(Person.IDENTIFIER_NHS_NUMBER);
+    if (nhsNumber == null) {
+      return;
+    }
+    String patientUrl = personEntry.getFullUrl();
+    for (BundleEntryComponent entry : bundle.getEntry()) {
+      if (entry == personEntry) {
+        continue;
+      }
+      for (Reference ref : FHIR_CTX.newTerser()
+          .getAllPopulatedChildElementsOfType(entry.getResource(), Reference.class)) {
+        if (patientUrl.equals(ref.getReference()) && !ref.hasIdentifier()) {
+          ref.setIdentifier(new Identifier().setSystem(NHS_NUMBER_SYSTEM).setValue(nhsNumber));
+        }
+      }
+    }
   }
 
   /**
@@ -571,13 +675,26 @@ public class FhirR4 {
         .setSystem("http://hospital.smarthealthit.org")
         .setValue((String) person.attributes.get(Person.ID));
 
-    Code ssnCode = new Code("http://terminology.hl7.org/CodeSystem/v2-0203", "SS", "Social Security Number");
-    patientResource.addIdentifier()
-        .setType(mapCodeToCodeableConcept(ssnCode, "http://terminology.hl7.org/CodeSystem/v2-0203"))
-        .setSystem("http://hl7.org/fhir/sid/us-ssn")
-        .setValue((String) person.attributes.get(Person.IDENTIFIER_SSN));
+    if (USE_UK_CORE_IG && person.attributes.get(Person.IDENTIFIER_NHS_NUMBER) != null) {
+      CodeableConcept verificationStatus = new CodeableConcept().addCoding(new Coding()
+          .setSystem(UK_CORE_NHS_NUMBER_VERIFICATION_STATUS_SYSTEM)
+          .setCode("01")
+          .setDisplay("Number present and verified"));
+      patientResource.addIdentifier()
+          .setSystem(NHS_NUMBER_SYSTEM)
+          .setValue((String) person.attributes.get(Person.IDENTIFIER_NHS_NUMBER))
+          .addExtension(new Extension(UK_CORE_NHS_NUMBER_VERIFICATION_STATUS, verificationStatus));
+    }
 
-    if (person.attributes.get(Person.IDENTIFIER_DRIVERS) != null) {
+    if (!USE_UK_CORE_IG) {
+      Code ssnCode = new Code("http://terminology.hl7.org/CodeSystem/v2-0203", "SS", "Social Security Number");
+      patientResource.addIdentifier()
+          .setType(mapCodeToCodeableConcept(ssnCode, "http://terminology.hl7.org/CodeSystem/v2-0203"))
+          .setSystem("http://hl7.org/fhir/sid/us-ssn")
+          .setValue((String) person.attributes.get(Person.IDENTIFIER_SSN));
+    }
+
+    if (!USE_UK_CORE_IG && person.attributes.get(Person.IDENTIFIER_DRIVERS) != null) {
       Code driversCode = new Code("http://terminology.hl7.org/CodeSystem/v2-0203", "DL", "Driver's license number");
       patientResource.addIdentifier()
           .setType(mapCodeToCodeableConcept(driversCode, "http://terminology.hl7.org/CodeSystem/v2-0203"))
@@ -589,7 +706,7 @@ public class FhirR4 {
       Code passportCode = new Code("http://terminology.hl7.org/CodeSystem/v2-0203", "PPN", "Passport Number");
       patientResource.addIdentifier()
           .setType(mapCodeToCodeableConcept(passportCode, "http://terminology.hl7.org/CodeSystem/v2-0203"))
-          .setSystem(PASSPORT_URI)
+          .setSystem(passportUri())
           .setValue((String) person.attributes.get(Person.IDENTIFIER_PASSPORT));
     }
 
@@ -699,10 +816,26 @@ public class FhirR4 {
       patientResource.addExtension(ethnicityExtension);
     }
 
+    String ethnicCategory = (String) person.attributes.get(Person.ETHNIC_CATEGORY);
+    NationalEthnicity nationalEthnicity = NationalEthnicity.current();
+    if (USE_UK_CORE_IG && ethnicCategory != null && nationalEthnicity != null) {
+      CodeableConcept category = new CodeableConcept().addCoding(new Coding()
+          .setSystem(nationalEthnicity.getCategorySystem())
+          .setCode(ethnicCategory)
+          .setDisplay(nationalEthnicity.getCategoryDisplay(ethnicCategory)));
+      patientResource.addExtension(new Extension(UK_CORE_ETHNIC_CATEGORY, category));
+    }
+
     String firstLanguage = (String) person.attributes.get(Person.FIRST_LANGUAGE);
     Map languageMap = (Map) languageLookup.get(firstLanguage);
+    if (languageMap == null) {
+      languageMap = (Map) languageLookup.get("english");
+    }
     Code languageCode = new Code((String) languageMap.get("system"),
         (String) languageMap.get("code"), (String) languageMap.get("display"));
+    if (USE_UK_CORE_IG && "en-US".equals(languageCode.code)) {
+      languageCode = new Code(languageCode.system, "en-GB", "English (United Kingdom)");
+    }
     List<PatientCommunicationComponent> communication =
         new ArrayList<PatientCommunicationComponent>();
     communication.add(new PatientCommunicationComponent(
@@ -771,8 +904,8 @@ public class FhirR4 {
         .setCity((String) person.attributes.get(Person.CITY))
         .setPostalCode((String) person.attributes.get(Person.ZIP))
         .setState(state);
-    if (COUNTRY_CODE != null) {
-      addrResource.setCountry(COUNTRY_CODE);
+    if (countryCode() != null) {
+      addrResource.setCountry(countryCode());
     }
 
     Address birthplace = new Address();
@@ -1816,6 +1949,51 @@ public class FhirR4 {
 
 
   /**
+   * The configured nation's LOINC vital sign to SNOMED CT observable entity mappings, from its
+   * vital_sign_snomed.json (see Nation.Resource.VITAL_SIGN_SNOMED). UK Core binds
+   * Observation.code (preferred) to SNOMED CT, so these are added alongside the LOINC coding,
+   * which is kept for interoperability and the FHIR vital signs profile.
+   * @return map of LOINC code to SNOMED CT code; empty if the nation has no mappings.
+   */
+  protected static Map<String, Code> vitalSignSnomed() {
+    String path = Nation.Resource.VITAL_SIGN_SNOMED.path();
+    if (path == null) {
+      return Collections.emptyMap();
+    }
+    return VITAL_SIGN_SNOMED_CACHE.computeIfAbsent(path, p -> {
+      try {
+        JsonObject json = JsonParser.parseString(Utilities.readResource(p, true, true))
+            .getAsJsonObject().getAsJsonObject("loinc_to_snomed");
+        Map<String, Code> map = new HashMap<>();
+        for (Map.Entry<String, JsonElement> e : json.entrySet()) {
+          JsonObject snomed = e.getValue().getAsJsonObject();
+          map.put(e.getKey(), new Code(SNOMED_URI, snomed.get("code").getAsString(),
+              snomed.get("display").getAsString()));
+        }
+        return map;
+      } catch (IOException e) {
+        throw new IllegalStateException("Unable to load vital sign SNOMED CT codes " + p, e);
+      }
+    });
+  }
+
+  /**
+   * Add the SNOMED CT observable entity equivalent of a LOINC vital sign code, if known.
+   * @param concept the CodeableConcept to extend.
+   */
+  protected static void addSnomedVitalSignCoding(CodeableConcept concept) {
+    Map<String, Code> vitalSignSnomed = vitalSignSnomed();
+    for (Coding coding : new ArrayList<>(concept.getCoding())) {
+      Code snomed = LOINC_URI.equals(coding.getSystem())
+          ? vitalSignSnomed.get(coding.getCode()) : null;
+      if (snomed != null && concept.getCoding().stream().noneMatch(
+          c -> SNOMED_URI.equals(c.getSystem()) && snomed.code.equals(c.getCode()))) {
+        concept.addCoding(new Coding(SNOMED_URI, snomed.code, snomed.display));
+      }
+    }
+  }
+
+  /**
    * Map the given Observation into a FHIR Observation resource, and add it to the given Bundle.
    *
    * @param personEntry    The Person Entry
@@ -1848,6 +2026,9 @@ public class FhirR4 {
         observationResource.getCode().addCoding(coding);
       }
     }
+    if (USE_UK_CORE_IG) {
+      addSnomedVitalSignCoding(observationResource.getCode());
+    }
 
     // map the code to the official display, ex "vital-signs" --> "Vital Signs"
     // in all cases the text is the same just with these two differences- space/hyphen and caps
@@ -1869,6 +2050,9 @@ public class FhirR4 {
       for (Observation subObs : observation.observations) {
         ObservationComponentComponent comp = new ObservationComponentComponent();
         comp.setCode(mapCodeToCodeableConcept(subObs.codes.get(0), LOINC_URI));
+        if (USE_UK_CORE_IG) {
+          addSnomedVitalSignCoding(comp.getCode());
+        }
         Type value = mapValueToFHIRType(subObs.value, subObs.unit);
         comp.setValue(value);
         observationResource.addComponent(comp);
@@ -2715,6 +2899,10 @@ public class FhirR4 {
               null), null));
     }
 
+    if (carePlan.title != null) {
+      careplanResource.setTitle(carePlan.title);
+    }
+
     String narrative = "Care Plan for ";
     careplanResource.setIntent(CarePlanIntent.ORDER);
     careplanResource.setSubject(new Reference(personEntry.getFullUrl()));
@@ -3166,8 +3354,8 @@ public class FhirR4 {
         .setCity(provider.city)
         .setPostalCode(provider.zip)
         .setState(provider.state);
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
+    if (countryCode() != null) {
+      address.setCountry(countryCode());
     }
     organizationResource.addAddress(address);
 
@@ -3233,8 +3421,8 @@ public class FhirR4 {
         .setCity(provider.city)
         .setPostalCode(provider.zip)
         .setState(provider.state);
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
+    if (countryCode() != null) {
+      address.setCountry(countryCode());
     }
     location.setAddress(address);
     LocationPositionComponent position = new LocationPositionComponent();
@@ -3293,8 +3481,8 @@ public class FhirR4 {
         .setCity((String) clinician.attributes.get(Clinician.CITY))
         .setPostalCode((String) clinician.attributes.get(Clinician.ZIP))
         .setState((String) clinician.attributes.get(Clinician.STATE));
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
+    if (countryCode() != null) {
+      address.setCountry(countryCode());
     }
     practitionerResource.addAddress(address);
 

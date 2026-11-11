@@ -8,6 +8,8 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.NhsNumberGenerator;
 import org.mitre.synthea.helpers.PhysiologyValueGenerator;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
@@ -24,6 +26,86 @@ public class LifecycleModuleTest {
   @AfterClass
   public static void after() {
     LifecycleModule.ENABLE_DEATH_BY_NATURAL_CAUSES = deathByNaturalCauses;
+  }
+
+  private static Person newbornWithDemographics(long seed, String gender) {
+    Person person = new Person(seed);
+    person.attributes.put(Person.GENDER, gender);
+    person.attributes.put(Person.FIRST_LANGUAGE, "english");
+    person.attributes.put(Person.RACE, "white");
+    person.attributes.put(Person.ETHNICITY, "nonhispanic");
+    return person;
+  }
+
+  /** Run with the given country code, restoring the configured one afterwards. */
+  private static void inNation(String countryCode, Runnable test) {
+    String original = Config.get("generate.geography.country_code");
+    try {
+      Config.set("generate.geography.country_code", countryCode);
+      test.run();
+    } finally {
+      Config.set("generate.geography.country_code", original);
+    }
+  }
+
+  @Test
+  public void testBirthAssignsValidNhsNumber() {
+    inNation("GB-ENG", LifecycleModuleTest::assertBirthAssignsValidNhsNumber);
+  }
+
+  private static void assertBirthAssignsValidNhsNumber() {
+    Person person = newbornWithDemographics(12345L, "F");
+    LifecycleModule.birth(person, 0L);
+    String nhsNumber = (String) person.attributes.get(Person.IDENTIFIER_NHS_NUMBER);
+    Assert.assertTrue("Invalid NHS number " + nhsNumber, NhsNumberGenerator.isValid(nhsNumber));
+    Assert.assertTrue(nhsNumber.startsWith("9"));
+    // the US-style SSN is still populated for exporters that need it
+    Assert.assertNotNull(person.attributes.get(Person.IDENTIFIER_SSN));
+  }
+
+  @Test
+  public void testUpstreamNationHasNoNhsNumber() {
+    inNation("US", () -> {
+      Person person = newbornWithDemographics(12345L, "F");
+      LifecycleModule.birth(person, 0L);
+      Assert.assertNull(person.attributes.get(Person.IDENTIFIER_NHS_NUMBER));
+      Assert.assertNotNull(person.attributes.get(Person.IDENTIFIER_SSN));
+      assertEquals("US", person.attributes.get(Person.COUNTRY));
+      assertEquals("US", person.attributes.get(Person.NATION));
+    });
+  }
+
+  @Test
+  public void testBirthAssignsSimulationCountryAndNation() {
+    inNation("GB-ENG", () -> {
+      Person person = newbornWithDemographics(12345L, "F");
+      LifecycleModule.birth(person, 0L);
+      assertEquals("GB", person.attributes.get(Person.COUNTRY));
+      assertEquals("GB-ENG", person.attributes.get(Person.NATION));
+    });
+  }
+
+  @Test
+  public void testBirthKeepsSuppliedNhsNumber() {
+    Person person = newbornWithDemographics(12345L, "M");
+    person.attributes.put(Person.IDENTIFIER_NHS_NUMBER, "9434765919");
+    LifecycleModule.birth(person, 0L);
+    assertEquals("9434765919", person.attributes.get(Person.IDENTIFIER_NHS_NUMBER));
+  }
+
+  @Test
+  public void testNhsNumberDoesNotPerturbRandomStream() {
+    inNation("GB-ENG", LifecycleModuleTest::assertNhsNumberDoesNotPerturbRandomStream);
+  }
+
+  private static void assertNhsNumberDoesNotPerturbRandomStream() {
+    Person a = newbornWithDemographics(777L, "F");
+    a.attributes.put(Person.IDENTIFIER_NHS_NUMBER, "9434765919");
+    LifecycleModule.birth(a, 0L);
+    Person b = newbornWithDemographics(777L, "F");
+    LifecycleModule.birth(b, 0L);
+    assertEquals(a.getCount(), b.getCount());
+    assertEquals(a.attributes.get(Person.NAME), b.attributes.get(Person.NAME));
   }
 
   @Test

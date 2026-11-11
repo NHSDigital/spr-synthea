@@ -17,8 +17,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -49,6 +51,7 @@ import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
 import org.mitre.synthea.world.concepts.VitalSign;
 import org.mitre.synthea.world.geography.Demographics;
 import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
 
 /**
  * Generator creates a population by running the generic modules each timestep
@@ -103,8 +106,8 @@ public class Generator {
   private boolean onlyVeterans;
   private Module keepPatientsModule;
   private Long maxAttemptsToKeepPatient;
-  /** The state to default to */
-  public static String DEFAULT_STATE = "Massachusetts";
+  /** The state to default to; null to use the configured nation's default (see Nation). */
+  public static String DEFAULT_STATE = Config.get("generate.geography.default_state");
   private Exporter.ExporterRuntimeOptions exporterRuntimeOptions;
   /**
    * EntityManager is used to manage fixed patient demographics records.
@@ -266,8 +269,10 @@ public class Generator {
   }
 
   private void init() {
+    // Fails clearly if generate.geography.country_code names a nation not implemented yet
+    Nation.current();
     if (options.state == null) {
-      options.state = DEFAULT_STATE;
+      options.state = DEFAULT_STATE != null ? DEFAULT_STATE : Nation.defaultState();
     }
     int stateIndex = Location.getIndex(options.state);
     if (Config.getAsBoolean("exporter.cdw.export")) {
@@ -403,6 +408,7 @@ public class Generator {
     }
 
     ExecutorService threadPool = Executors.newFixedThreadPool(threadPoolSize);
+    List<Future<?>> generationTasks = new LinkedList<>();
 
     if (options.initialPopulationSnapshotPath != null) {
       FileInputStream fis = null;
@@ -430,7 +436,9 @@ public class Generator {
         for (int i = 0; i < initialPopulation.size(); i++) {
           final int index = i;
           final Person p = initialPopulation.get(i);
-          threadPool.submit(() -> updateRecordExportPerson(p, index));
+          generationTasks.add(threadPool.submit(() -> {
+            updateRecordExportPerson(p, index);
+          }));
         }
       }
     } else if (this.options.singlePersonSeed == null) {
@@ -438,21 +446,41 @@ public class Generator {
       for (int i = 0; i < this.options.population; i++) {
         final int index = i;
         final long seed = this.populationRandom.randLong();
-        threadPool.submit(() -> generatePerson(index, seed));
+        // Submit a Runnable so completed Futures do not retain the generated Person.
+        generationTasks.add(threadPool.submit(() -> {
+          generatePerson(index, seed);
+        }));
       }
     } else {
       // we have a single fixed seed to generate, don't bother with threadpool
       generatePerson(0, this.options.singlePersonSeed);
     }
 
+    int failedTasks = 0;
+    Throwable firstFailure = null;
     try {
       threadPool.shutdown();
       while (!threadPool.awaitTermination(30, TimeUnit.SECONDS)) {
         System.out.println("Waiting for threads to finish... " + threadPool);
       }
+      for (Future<?> task : generationTasks) {
+        try {
+          task.get();
+        } catch (ExecutionException e) {
+          failedTasks++;
+          if (firstFailure == null) {
+            firstFailure = e.getCause();
+          }
+        }
+      }
     } catch (InterruptedException e) {
-      System.out.println("Generator interrupted. Attempting to shut down associated thread pool.");
       threadPool.shutdownNow();
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Patient generation interrupted; output is incomplete.", e);
+    }
+    if (failedTasks > 0) {
+      throw new IllegalStateException("Patient generation failed for " + failedTasks + " of "
+          + generationTasks.size() + " tasks; output is incomplete.", firstFailure);
     }
 
     // Save a snapshot of the generated population using Java Serialization
@@ -852,7 +880,8 @@ public class Generator {
     // this is synchronized to ensure all lines for a single person are always printed
     // consecutively
     String deceased = isAlive ? "" : "DECEASED";
-    System.out.format("%d -- %s (%d y/o %s) %s, %s %s (%d)\n", index + 1,
+    System.out.format("%d -- %s %s (%d y/o %s) %s, %s %s (%d)\n", index + 1,
+        person.attributes.get(Person.IDENTIFIER_NHS_NUMBER),
         person.attributes.get(Person.NAME), person.ageInYears(time),
         person.attributes.get(Person.GENDER),
         person.attributes.get(Person.CITY), person.attributes.get(Person.STATE),
@@ -898,6 +927,10 @@ public class Generator {
     demographicsOutput.put(Person.ETHNICITY, ethnicity);
     String language = city.languageFromRaceAndEthnicity(race, ethnicity, random);
     demographicsOutput.put(Person.FIRST_LANGUAGE, language);
+    if (city.nationalEthnicity != null) {
+      demographicsOutput.put(Person.ETHNIC_CATEGORY,
+          city.nationalEthnicity.pickCategory(race, language, random));
+    }
 
     // Generate the person's gender based on their location.
     String gender;

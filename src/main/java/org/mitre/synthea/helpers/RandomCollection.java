@@ -45,6 +45,16 @@ public class RandomCollection<E> implements Serializable {
   }
 
   /**
+   * Select an item like {@link #next(RandomNumberGenerator)}, but without consuming a random
+   * number when the collection holds only one item, so the generator's sequence is unchanged.
+   * @param random the random number generator.
+   * @return a random item from the collection weighted by the item weights.
+   */
+  public E nextDrawingOnlyIfNeeded(RandomNumberGenerator random) {
+    return map.size() == 1 ? map.firstEntry().getValue() : next(random);
+  }
+
+  /**
    * Select an item from the collection at random by the weight of the items.
    * Selecting an item from one draw, does not remove the item from the collection
    * for subsequent draws. In other words, an item can be selected repeatedly if

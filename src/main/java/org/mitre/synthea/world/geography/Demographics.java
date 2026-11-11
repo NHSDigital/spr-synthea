@@ -60,6 +60,11 @@ public class Demographics implements Comparable<Demographics>, Serializable {
 
   /** The percentage of the population that is of Hispanic ethnicity. */
   public double ethnicity;
+  /**
+   * The nation's ethnicity model (ethnic groups, national ethnic categories and main languages),
+   * or null for upstream US Census race and Hispanic ethnicity. See {@link Nation}.
+   */
+  public NationalEthnicity nationalEthnicity;
   /** Ethnicity distribution for the population */
   private RandomCollection<String> ethnicityDistribution;
 
@@ -170,6 +175,9 @@ public class Demographics implements Comparable<Demographics>, Serializable {
    */
   public String languageFromRaceAndEthnicity(String race, String ethnicity,
       RandomNumberGenerator random) {
+    if (nationalEthnicity != null) {
+      return nationalEthnicity.pickMainLanguage(race, random);
+    }
     if (ethnicity.equals("hispanic")) {
       RandomCollection<String> hispanicLanguageUsage = new RandomCollection<>();
       // https://factfinder.census.gov/faces/tableservices/jsf/pages/productview.xhtml?pid=ACS_17_5YR_B16006&prodType=table
@@ -431,7 +439,8 @@ public class Demographics implements Comparable<Demographics>, Serializable {
    */
   public static Table<String, String, Demographics> load(String state)
       throws IOException {
-    String filename = Config.get("generate.demographics.default_file");
+    String filename = Nation.Resource.DEMOGRAPHICS.path();
+    NationalEthnicity ethnicity = NationalEthnicity.current();
     String csv = Utilities.readResource(filename, true, true);
 
     List<? extends Map<String,String>> demographicsCsv = SimpleCSV.parse(csv);
@@ -444,7 +453,7 @@ public class Demographics implements Comparable<Demographics>, Serializable {
 
       // for now, only allow one state at a time
       if (state != null && state.equalsIgnoreCase(currState)) {
-        Demographics parsed = csvLineToDemographics(demographicsLine);
+        Demographics parsed = csvLineToDemographics(demographicsLine, ethnicity);
 
         table.put(currState, currCityId, parsed);
       }
@@ -478,9 +487,11 @@ public class Demographics implements Comparable<Demographics>, Serializable {
    * Map a single line of the demographics CSV file into a Demographics object.
    *
    * @param line a line representing one city, parsed via SimpleCSV
+   * @param ethnicity the nation's ethnicity model, or null for upstream US Census columns
    * @return the Demographics object for that city
    */
-  private static Demographics csvLineToDemographics(Map<String,String> line) {
+  private static Demographics csvLineToDemographics(Map<String,String> line,
+      NationalEthnicity ethnicity) {
     Demographics d = new Demographics();
 
     d.population = Double.valueOf(line.get("POPESTIMATE2015")).longValue();
@@ -507,14 +518,28 @@ public class Demographics implements Comparable<Demographics>, Serializable {
     d.gender.put("female", Double.parseDouble(line.get("TOT_FEMALE")));
     nonZeroDefaults(d.gender);
 
+    // The configured nation decides the ethnic group columns; there is no format sniffing.
+    d.nationalEthnicity = ethnicity;
+    boolean national = ethnicity != null;
     double percentageTotal = 0;
     d.race = new HashMap<String, Double>();
-    for (String race : CSV_RACES) {
-      double percentage = Double.parseDouble(line.get(race));
+    for (String race : national ? ethnicity.getGroups() : CSV_RACES) {
+      String value = line.get(race);
+      if (value == null) {
+        throw new IllegalArgumentException("Demographics for " + d.city + " have no " + race
+            + " column, which " + Nation.configuredCode() + " requires (see "
+            + Nation.COUNTRY_CODE_KEY + ")");
+      }
+      double percentage = Double.parseDouble(value);
       d.race.put(race.toLowerCase(), percentage);
       percentageTotal += percentage;
     }
-    if (percentageTotal < 1.0) {
+    if (national) {
+      // Any unaccounted-for remainder is treated as "other"
+      if (percentageTotal < 1.0) {
+        d.race.put("other", d.race.get("other") + (1.0 - percentageTotal));
+      }
+    } else if (percentageTotal < 1.0) {
       // Account for Hawaiian and Pacific Islanders
       // and mixed race responses, and responses
       // that chose not to answer the race question.
@@ -553,7 +578,8 @@ public class Demographics implements Comparable<Demographics>, Serializable {
     }
     nonZeroDefaults(d.education);
 
-    d.ethnicity = Double.parseDouble(line.get(CSV_ETHNICITY));
+    // the US Census Hispanic ethnicity has no equivalent in national (UK) files
+    d.ethnicity = national ? 0.0 : Double.parseDouble(line.get(CSV_ETHNICITY));
 
     return d;
   }

@@ -1,0 +1,2 @@
+id,name,address,city,state,zip,lat,lon,phone,emergency,hasSpecialties,GENERAL PRACTICE,CERTIFIED NURSE MIDWIFE,CLINICAL NURSE SPECIALIST
+1,Test General Hospital,1 Main Street,Sacramento,CA,95814,38.58,-121.49,555-0100,true,true,2,2,1

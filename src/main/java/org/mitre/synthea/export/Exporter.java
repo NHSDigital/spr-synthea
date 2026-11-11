@@ -7,7 +7,10 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -25,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -70,6 +74,7 @@ public abstract class Exporter {
           new ConcurrentHashMap<Path, PrintWriter>();
 
   private static final int FILE_BUFFER_SIZE = 4 * 1024 * 1024;
+  private static final int GZIP_BUFFER_SIZE = 64 * 1024;
 
   private static List<PatientExporter> patientExporters;
   private static List<PostCompletionExporter> postCompletionExporters;
@@ -355,14 +360,26 @@ public abstract class Exporter {
       }
 
       IParser parser = FhirR4.getContext().newJsonParser();
+      boolean compress = Config.getAsBoolean("exporter.fhir.compress_data", false);
       if (Config.getAsBoolean("exporter.fhir.bulk_data")) {
         parser.setPrettyPrint(false);
-        for (org.hl7.fhir.r4.model.Bundle.BundleEntryComponent entry : bundle.getEntry()) {
-          String filename = entry.getResource().getResourceType().toString() + ".ndjson";
-          Path outFilePath = outDirectory.toPath().resolve(filename);
-          String entryJson = parser.encodeResourceToString(entry.getResource());
-          appendToFile(outFilePath, entryJson);
+        if (compress) {
+          Path outFilePath =
+              outDirectory.toPath().resolve(filename(person, fileTag, "ndjson.gz"));
+          writeNewGzNdjsonFile(outFilePath, bundle, parser);
+        } else {
+          for (org.hl7.fhir.r4.model.Bundle.BundleEntryComponent entry : bundle.getEntry()) {
+            String filename = entry.getResource().getResourceType().toString() + ".ndjson";
+            Path outFilePath = outDirectory.toPath().resolve(filename);
+            String entryJson = parser.encodeResourceToString(entry.getResource());
+            appendToFile(outFilePath, entryJson);
+          }
         }
+      } else if (compress) {
+        parser.setPrettyPrint(false);
+        String bundleJson = parser.encodeResourceToString(bundle);
+        Path outFilePath = outDirectory.toPath().resolve(filename(person, fileTag, "json.gz"));
+        writeNewGzFile(outFilePath, bundleJson);
       } else {
         parser.setPrettyPrint(true);
         String bundleJson = parser.encodeResourceToString(bundle);
@@ -485,6 +502,57 @@ public abstract class Exporter {
     try {
       Files.write(file, Collections.singleton(contents), StandardOpenOption.CREATE_NEW);
     } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  /**
+   * Write a new gzip-compressed file with the given contents. Fails if the file already exists.
+   * @param file Path to the new file.
+   * @param contents The (uncompressed) contents of the file.
+   */
+  public static void writeNewGzFile(Path file, String contents) {
+    try (Writer writer = new OutputStreamWriter(new GZIPOutputStream(
+        Files.newOutputStream(file, StandardOpenOption.CREATE_NEW), GZIP_BUFFER_SIZE),
+        StandardCharsets.UTF_8)) {
+      writer.write(contents);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  /**
+   * Write every resource in the bundle as one line of a new gzip-compressed NDJSON file.
+   * The file is written to a temporary ".part" sibling and moved into place on success,
+   * so consumers never see a partially written file. Fails if the file already exists.
+   * @param file Path to the new file.
+   * @param bundle The bundle whose entries are written.
+   * @param parser A (non pretty-printing) JSON parser.
+   */
+  public static void writeNewGzNdjsonFile(Path file, org.hl7.fhir.r4.model.Bundle bundle,
+      IParser parser) {
+    if (Files.exists(file)) {
+      System.err.println("Error: File already exists: " + file.toAbsolutePath());
+      return;
+    }
+    Path tempFile = file.resolveSibling(file.getFileName().toString() + ".part");
+    try {
+      try (Writer writer = new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(
+          Files.newOutputStream(tempFile, StandardOpenOption.CREATE,
+              StandardOpenOption.TRUNCATE_EXISTING), GZIP_BUFFER_SIZE),
+          StandardCharsets.UTF_8))) {
+        for (org.hl7.fhir.r4.model.Bundle.BundleEntryComponent entry : bundle.getEntry()) {
+          parser.encodeResourceToWriter(entry.getResource(), writer);
+          writer.write('\n');
+        }
+      }
+      Files.move(tempFile, file);
+    } catch (IOException e) {
+      try {
+        Files.deleteIfExists(tempFile);
+      } catch (IOException ignored) {
+        // best effort clean-up
+      }
       e.printStackTrace();
     }
   }
@@ -902,7 +970,8 @@ public abstract class Exporter {
 
   /**
    * Get the filename to used to export the patient record.
-   * See the configuration setting "exporter.use_uuid_filenames".
+   * See the configuration settings "exporter.use_uuid_filenames" and
+   * "exporter.use_nhs_number_filenames".
    *
    * @param person    The person being exported.
    * @param tag       A tag to add to the filename before the extension.
@@ -910,8 +979,12 @@ public abstract class Exporter {
    * @return The filename only (not a path).
    */
   public static String filename(Person person, String tag, String extension) {
+    Object nhsNumber = person.attributes.get(Person.IDENTIFIER_NHS_NUMBER);
     if (Config.getAsBoolean("exporter.use_uuid_filenames")) {
       return person.attributes.get(Person.ID) + tag + "." + extension;
+    } else if (nhsNumber != null
+        && Config.getAsBoolean("exporter.use_nhs_number_filenames", false)) {
+      return nhsNumber + tag + "." + extension;
     } else {
       // ensure unique filenames for now
       return person.attributes.get(Person.NAME).toString().replace(' ', '_') + "_"

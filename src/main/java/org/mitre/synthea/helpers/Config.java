@@ -7,19 +7,33 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Utility class for managing configuration properties in Synthea.
  * Provides methods to load, retrieve, and manipulate configuration values.
  */
 public abstract class Config {
+  /** Classpath resource loaded after synthea.properties, if present, to override defaults. */
+  public static final String OVERRIDES_RESOURCE = "/synthea-overrides.properties";
   private static Properties properties = new Properties();
+  /** Incremented on every change, so callers can cache values derived from the config. */
+  private static final AtomicLong version = new AtomicLong();
 
   static {
     try {
       load(Config.class.getResourceAsStream("/synthea.properties"));
     } catch (IOException e) {
       System.err.println("Unable to load default properties file");
+      e.printStackTrace();
+    }
+    // Optional overrides on the classpath, e.g. the test suite pins US data this way.
+    try (InputStream overrides = Config.class.getResourceAsStream(OVERRIDES_RESOURCE)) {
+      if (overrides != null) {
+        load(overrides);
+      }
+    } catch (IOException e) {
+      System.err.println("Unable to load " + OVERRIDES_RESOURCE);
       e.printStackTrace();
     }
   }
@@ -33,6 +47,7 @@ public abstract class Config {
    */
   public static void load(File propsFile) throws FileNotFoundException, IOException {
     properties.load(new FileReader(propsFile));
+    version.incrementAndGet();
   }
 
   /**
@@ -43,6 +58,7 @@ public abstract class Config {
    */
   public static void load(InputStream stream) throws IOException {
     properties.load(stream);
+    version.incrementAndGet();
   }
 
   /**
@@ -84,8 +100,9 @@ public abstract class Config {
    * @return value for the property as a double, or defaultValue if not found
    */
   public static double getAsDouble(String key, double defaultValue) {
-    if (properties.containsKey(key)) {
-      return getAsDouble(key);
+    String value = get(key);
+    if (value != null) {
+      return Double.parseDouble(value);
     } else {
       return defaultValue;
     }
@@ -109,8 +126,9 @@ public abstract class Config {
    * @return value for the property as a boolean, or defaultValue if not found
    */
   public static boolean getAsBoolean(String key, boolean defaultValue) {
-    if (properties.containsKey(key)) {
-      return getAsBoolean(key);
+    String value = get(key);
+    if (value != null) {
+      return Boolean.parseBoolean(value);
     } else {
       return defaultValue;
     }
@@ -134,8 +152,9 @@ public abstract class Config {
    * @return value for the property as an int, or defaultValue if not found
    */
   public static int getAsInteger(String key, int defaultValue) {
-    if (properties.containsKey(key)) {
-      return getAsInteger(key);
+    String value = get(key);
+    if (value != null) {
+      return Integer.parseInt(value);
     } else {
       return defaultValue;
     }
@@ -159,8 +178,9 @@ public abstract class Config {
    * @return value for the property as a long, or defaultValue if not found
    */
   public static long getAsLong(String key, long defaultValue) {
-    if (properties.containsKey(key)) {
-      return getAsLong(key);
+    String value = get(key);
+    if (value != null) {
+      return Long.parseLong(value);
     } else {
       return defaultValue;
     }
@@ -174,6 +194,7 @@ public abstract class Config {
    */
   public static void set(String key, String value) {
     properties.setProperty(key, value);
+    version.incrementAndGet();
   }
 
   /**
@@ -197,8 +218,17 @@ public abstract class Config {
    * @param key property name
    */
   public static void remove(String key) {
-    if (properties.containsKey(key)) {
-      properties.remove(key);
-    }
+    properties.remove(key);
+    version.incrementAndGet();
+  }
+
+  /**
+   * A number that changes whenever the configuration changes (set, remove or load), so values
+   * derived from the configuration can be cached and recomputed only after a change.
+   *
+   * @return the current configuration version
+   */
+  public static long version() {
+    return version.get();
   }
 }

@@ -73,6 +73,10 @@ public class Person implements Serializable, RandomNumberGenerator, QuadTreeElem
   public static final String ETHNICITY = "ethnicity";
   /** Represents the first language of the person. */
   public static final String FIRST_LANGUAGE = "first_language";
+  /** NHS Data Dictionary (2001 census) ethnic category code, e.g. "A" for White British. */
+  public static final String ETHNIC_CATEGORY = "ethnic_category";
+  /** Origin of the person's names, e.g. "english" or "polish" (see Names.nameOrigin). */
+  public static final String NAME_ORIGIN = "name_origin";
   /** Represents the gender of the person. */
   public static final String GENDER = "gender";
   /** Represents whether the person is part of a multiple birth. */
@@ -87,6 +91,17 @@ public class Person implements Serializable, RandomNumberGenerator, QuadTreeElem
   public static final String BIRTH_CITY = "birth_city";
   /** Represents the country of birth of the person. */
   public static final String BIRTH_COUNTRY = "birth_country";
+  /**
+   * Represents the ISO 3166-1 country code of the country the simulation is set in,
+   * e.g. "US" or "GB" (derived from generate.geography.country_code, see {@link #NATION}).
+   */
+  public static final String COUNTRY = "country";
+  /**
+   * The nation the simulation is set in (generate.geography.country_code), e.g. "GB-ENG" for
+   * England or "US". UK nations differ in guidance (e.g. NICE in England), so modules should
+   * select UK pathways with this attribute rather than {@link #COUNTRY}.
+   */
+  public static final String NATION = "nation";
   /** Represents the state of birth of the person. */
   public static final String BIRTH_STATE = "birth_state";
   /** Represents the birthplace of the person. */
@@ -135,6 +150,8 @@ public class Person implements Serializable, RandomNumberGenerator, QuadTreeElem
   public static final String ADHERENCE = "adherence";
   /** Represents the social security number identifier of the person. */
   public static final String IDENTIFIER_SSN = "identifier_ssn";
+  /** Represents the NHS number identifier of the person. */
+  public static final String IDENTIFIER_NHS_NUMBER = "identifier_nhs_number";
   /** Represents the driver's license identifier of the person. */
   public static final String IDENTIFIER_DRIVERS = "identifier_drivers";
   /** Represents the passport identifier of the person. */

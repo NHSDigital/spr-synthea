@@ -938,6 +938,8 @@ public abstract class State implements Cloneable, Serializable {
     private String reason;
     /** Always, sometimes, or never possible for a telemedicine encounter */
     private String telemedicinePossibility;
+    /** Optional clinician specialty for this encounter, overriding the module specialty. */
+    private String specialty;
 
     @Override
     public Encounter clone() {
@@ -1016,12 +1018,14 @@ public abstract class State implements Cloneable, Serializable {
         } else {
           type = EncounterType.fromString(encounterClass);
         }
-        String specialty = ClinicianSpecialty.GENERAL_PRACTICE;
-        if (this.module.specialty != null) {
-          specialty = this.module.specialty;
+        String clinicianSpecialty = ClinicianSpecialty.GENERAL_PRACTICE;
+        if (this.specialty != null) {
+          clinicianSpecialty = this.specialty;
+        } else if (this.module.specialty != null) {
+          clinicianSpecialty = this.module.specialty;
         }
         HealthRecord.Encounter encounter = EncounterModule.createEncounter(person, time, type,
-            specialty, null, module.name);
+            clinicianSpecialty, null, module.name);
         entry = encounter;
         if (codes != null) {
           encounter.mergeCodeList(codes);
@@ -1646,6 +1650,8 @@ public abstract class State implements Cloneable, Serializable {
     private transient List<JsonObject> goals; // TODO: make this a Component
     /** The reason for starting this CarePlan */
     private String reason;
+    /** Optional human-readable title of the CarePlan */
+    private String title;
 
     @Override
     public CarePlanStart clone() {
@@ -1660,6 +1666,7 @@ public abstract class State implements Cloneable, Serializable {
       entry = careplan;
       careplan.name = this.name;
       careplan.mergeCodeList(codes);
+      careplan.title = this.title;
 
       if (activities != null) {
         careplan.activities.addAll(activities);
@@ -1756,6 +1763,8 @@ public abstract class State implements Cloneable, Serializable {
     private Distribution distribution;
     /** The unit of time for the duration of the procedure */
     private String unit;
+    /** Codes of the care plans this procedure is based on */
+    private List<Code> careplans;
 
     @Override
     protected void initialize(Module module, String name, JsonObject definition) {
@@ -1822,6 +1831,9 @@ public abstract class State implements Cloneable, Serializable {
         }
         this.stop = procedure.start + Utilities.convertTime(procedureDurationUnit, durationVal);
         procedure.stop = this.stop;
+      }
+      if (careplans != null) {
+        procedure.codesBasedOn.addAll(careplans);
       }
       // increment number of procedures by respective hospital
       Provider provider;

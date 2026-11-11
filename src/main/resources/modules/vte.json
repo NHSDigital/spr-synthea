@@ -1,0 +1,245 @@
+{
+  "name": "Venous Thromboembolism",
+  "remarks": [
+    "A simple model of a first venous thromboembolism (deep vein thrombosis or pulmonary",
+    "embolism) in adults, treated with 3 months of a direct oral anticoagulant. Provoking factors",
+    "(surgery, cancer, immobility) and recurrence are not modelled."
+  ],
+  "states": {
+    "Initial": {
+      "type": "Initial",
+      "direct_transition": "Adult_Guard"
+    },
+    "Adult_Guard": {
+      "type": "Guard",
+      "allow": {
+        "condition_type": "Age",
+        "operator": ">=",
+        "quantity": 18,
+        "unit": "years"
+      },
+      "direct_transition": "Annual_VTE_Risk"
+    },
+    "Annual_VTE_Risk": {
+      "type": "Delay",
+      "exact": {
+        "quantity": 1,
+        "unit": "years"
+      },
+      "remarks": [
+        "Annual incidence of first venous thromboembolism rises steeply with age, from about",
+        "0.5 per 1,000 in young adults to 5-6 per 1,000 over 80 (overall ~1-2 per 1,000 per year).",
+        "Source: NICE CKS Deep vein thrombosis; Heit JA, Nat Rev Cardiol 2015;12:464-74."
+      ],
+      "complex_transition": [
+        {
+          "condition": {
+            "condition_type": "Age",
+            "operator": "<",
+            "quantity": 40,
+            "unit": "years"
+          },
+          "distributions": [
+            {
+              "transition": "VTE_Event",
+              "distribution": 0.0005
+            },
+            {
+              "transition": "Annual_VTE_Risk",
+              "distribution": 0.9995
+            }
+          ]
+        },
+        {
+          "condition": {
+            "condition_type": "Age",
+            "operator": "<",
+            "quantity": 60,
+            "unit": "years"
+          },
+          "distributions": [
+            {
+              "transition": "VTE_Event",
+              "distribution": 0.0012
+            },
+            {
+              "transition": "Annual_VTE_Risk",
+              "distribution": 0.9988
+            }
+          ]
+        },
+        {
+          "condition": {
+            "condition_type": "Age",
+            "operator": "<",
+            "quantity": 80,
+            "unit": "years"
+          },
+          "distributions": [
+            {
+              "transition": "VTE_Event",
+              "distribution": 0.003
+            },
+            {
+              "transition": "Annual_VTE_Risk",
+              "distribution": 0.997
+            }
+          ]
+        },
+        {
+          "distributions": [
+            {
+              "transition": "VTE_Event",
+              "distribution": 0.006
+            },
+            {
+              "transition": "Annual_VTE_Risk",
+              "distribution": 0.994
+            }
+          ]
+        }
+      ]
+    },
+    "VTE_Event": {
+      "type": "Simple",
+      "remarks": [
+        "Roughly two thirds of VTE events present as DVT and one third as PE."
+      ],
+      "distributed_transition": [
+        {
+          "transition": "DVT",
+          "distribution": 0.65
+        },
+        {
+          "transition": "Pulmonary_Embolism",
+          "distribution": 0.35
+        }
+      ]
+    },
+    "DVT": {
+      "type": "ConditionOnset",
+      "target_encounter": "VTE_Encounter",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "128053003",
+          "display": "Deep venous thrombosis (disorder)"
+        }
+      ],
+      "assign_to_attribute": "venous_thromboembolism",
+      "direct_transition": "VTE_Encounter"
+    },
+    "Pulmonary_Embolism": {
+      "type": "ConditionOnset",
+      "target_encounter": "VTE_Encounter",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "59282003",
+          "display": "Pulmonary embolism (disorder)"
+        }
+      ],
+      "assign_to_attribute": "venous_thromboembolism",
+      "direct_transition": "VTE_Encounter"
+    },
+    "VTE_Encounter": {
+      "type": "Encounter",
+      "encounter_class": "emergency",
+      "reason": "venous_thromboembolism",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "50849002",
+          "display": "Emergency room admission (procedure)"
+        }
+      ],
+      "direct_transition": "Anticoagulation"
+    },
+    "Anticoagulation": {
+      "type": "MedicationOrder",
+      "remarks": [
+        "NICE NG158: offer apixaban or rivaroxaban for at least 3 months after a confirmed VTE."
+      ],
+      "codes": [
+        {
+          "system": "RxNorm",
+          "code": "1364445",
+          "display": "apixaban 5 MG Oral Tablet"
+        }
+      ],
+      "reason": "venous_thromboembolism",
+      "prescription": {
+        "dosage": {
+          "amount": 1,
+          "frequency": 2,
+          "period": 1,
+          "unit": "days"
+        },
+        "duration": {
+          "quantity": 3,
+          "unit": "months"
+        }
+      },
+      "direct_transition": "End_VTE_Encounter"
+    },
+    "End_VTE_Encounter": {
+      "type": "EncounterEnd",
+      "direct_transition": "Three_Months_Treatment"
+    },
+    "Three_Months_Treatment": {
+      "type": "Delay",
+      "exact": {
+        "quantity": 3,
+        "unit": "months"
+      },
+      "direct_transition": "VTE_Follow_Up_Encounter"
+    },
+    "VTE_Follow_Up_Encounter": {
+      "type": "Encounter",
+      "encounter_class": "ambulatory",
+      "reason": "venous_thromboembolism",
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "390906007",
+          "display": "Follow-up encounter (procedure)"
+        }
+      ],
+      "direct_transition": "End_Anticoagulation"
+    },
+    "End_Anticoagulation": {
+      "type": "MedicationEnd",
+      "medication_order": "Anticoagulation",
+      "direct_transition": "VTE_Resolved"
+    },
+    "VTE_Resolved": {
+      "type": "ConditionEnd",
+      "referenced_by_attribute": "venous_thromboembolism",
+      "direct_transition": "History_Of_Thrombosis"
+    },
+    "History_Of_Thrombosis": {
+      "type": "ConditionOnset",
+      "target_encounter": "VTE_Follow_Up_Encounter",
+      "remarks": [
+        "Remains active for life; the pregnancy module uses it to start a VTE prevention care plan."
+      ],
+      "codes": [
+        {
+          "system": "SNOMED-CT",
+          "code": "275546001",
+          "display": "History of thrombosis (situation)"
+        }
+      ],
+      "assign_to_attribute": "history_of_thrombosis",
+      "direct_transition": "End_VTE_Follow_Up_Encounter"
+    },
+    "End_VTE_Follow_Up_Encounter": {
+      "type": "EncounterEnd",
+      "direct_transition": "Terminal"
+    },
+    "Terminal": {
+      "type": "Terminal"
+    }
+  },
+  "gmf_version": 2
+}

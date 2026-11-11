@@ -1,0 +1,42 @@
+{
+  "name": "Encounter Specialty",
+  "specialty": "CERTIFIED NURSE MIDWIFE",
+  "states": {
+    "Initial": {
+      "type": "Initial",
+      "direct_transition": "Module_Specialty_Encounter"
+    },
+    "Module_Specialty_Encounter": {
+      "type": "Encounter",
+      "encounter_class": "ambulatory",
+      "codes": [{
+        "system": "SNOMED-CT",
+        "code": "185347001",
+        "display": "Encounter for problem (procedure)"
+      }],
+      "direct_transition": "End_Module_Specialty_Encounter"
+    },
+    "End_Module_Specialty_Encounter": {
+      "type": "EncounterEnd",
+      "direct_transition": "State_Specialty_Encounter"
+    },
+    "State_Specialty_Encounter": {
+      "type": "Encounter",
+      "encounter_class": "ambulatory",
+      "specialty": "GENERAL PRACTICE",
+      "codes": [{
+        "system": "SNOMED-CT",
+        "code": "185347001",
+        "display": "Encounter for problem (procedure)"
+      }],
+      "direct_transition": "End_State_Specialty_Encounter"
+    },
+    "End_State_Specialty_Encounter": {
+      "type": "EncounterEnd",
+      "direct_transition": "Terminal"
+    },
+    "Terminal": {
+      "type": "Terminal"
+    }
+  }
+}

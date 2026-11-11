@@ -14,8 +14,11 @@ import org.mitre.synthea.export.rif.identifiers.Passport;
 import org.mitre.synthea.helpers.Attributes;
 import org.mitre.synthea.helpers.Attributes.Inventory;
 import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.DefaultRandomNumberGenerator;
+import org.mitre.synthea.helpers.NhsNumberGenerator;
 import org.mitre.synthea.helpers.PhysiologyValueGenerator;
 import org.mitre.synthea.helpers.RandomCollection;
+import org.mitre.synthea.helpers.RandomNumberGenerator;
 import org.mitre.synthea.helpers.SimpleCSV;
 import org.mitre.synthea.helpers.TrendingValueGenerator;
 import org.mitre.synthea.helpers.Utilities;
@@ -36,6 +39,7 @@ import org.mitre.synthea.world.concepts.Names;
 import org.mitre.synthea.world.concepts.PediatricGrowthTrajectory;
 import org.mitre.synthea.world.concepts.VitalSign;
 import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
 
 /**
  * LifecycleModule is responsible for managing the lifecycle of a Person.
@@ -62,7 +66,8 @@ public final class LifecycleModule extends Module {
   /** Attribute key for a person's probability to follow doctor's orders and recommendations */
   public static final String ADHERENCE_PROBABILITY = "adherence probability";
 
-  private static final String COUNTRY_CODE = Config.get("generate.geography.country_code");
+  private static final String COUNTRY_CODE = Nation.isoCountryCode();
+  private static final long NHS_NUMBER_SEED_SALT = 0x4E48534E554D4245L;
   private static final Double MIDDLE_NAME_PROBABILITY =
       Config.getAsDouble("generate.middle_names", 0.80);
 
@@ -152,16 +157,17 @@ public final class LifecycleModule extends Module {
     Map<String, Object> attributes = person.attributes;
 
     attributes.put(Person.ID, person.randUUID().toString());
-    String language = (String) attributes.get(Person.FIRST_LANGUAGE);
+    String nameOrigin = Names.nameOrigin(person);
+    attributes.put(Person.NAME_ORIGIN, nameOrigin);
     String gender = (String) attributes.get(Person.GENDER);
     if (attributes.get(Person.ENTITY) == null) {
       attributes.put(Person.BIRTHDATE, time);
-      String firstName = Names.fakeFirstName(gender, language, person);
-      String lastName = Names.fakeLastName(language, person);
+      String firstName = Names.fakeFirstName(gender, nameOrigin, person);
+      String lastName = Names.fakeLastName(nameOrigin, person);
       attributes.put(Person.FIRST_NAME, firstName);
       String middleName = null;
       if (person.rand() <= MIDDLE_NAME_PROBABILITY) {
-        middleName = Names.fakeFirstName(gender, language, person);
+        middleName = Names.fakeFirstName(gender, nameOrigin, person);
         attributes.put(Person.MIDDLE_NAME, middleName);
       }
       attributes.put(Person.LAST_NAME, lastName);
@@ -175,11 +181,11 @@ public final class LifecycleModule extends Module {
       attributes.put(Person.ADDRESS, Names.fakeAddress(hasStreetAddress2, person));
     }
 
-    String motherFirstName = Names.fakeFirstName("F", language, person);
-    String motherLastName = Names.fakeLastName(language, person);
+    String motherFirstName = Names.fakeFirstName("F", nameOrigin, person);
+    String motherLastName = Names.fakeLastName(nameOrigin, person);
     attributes.put(Person.NAME_MOTHER, motherFirstName + " " + motherLastName);
 
-    String fatherFirstName = Names.fakeFirstName("M", language, person);
+    String fatherFirstName = Names.fakeFirstName("M", nameOrigin, person);
     // this is anglocentric where the baby gets the father's last name
     attributes.put(Person.NAME_FATHER, fatherFirstName + " " + attributes.get(Person.LAST_NAME));
 
@@ -192,6 +198,18 @@ public final class LifecycleModule extends Module {
     String ssn = "999-" + ((person.randInt(99 - 10 + 1) + 10)) + "-"
         + ((person.randInt(9999 - 1000 + 1) + 1000));
     attributes.put(Person.IDENTIFIER_SSN, ssn);
+
+    Nation nation = Nation.current();
+    if (nation.usesNhsNumbers() && attributes.get(Person.IDENTIFIER_NHS_NUMBER) == null) {
+      // Use a dedicated RNG so NHS number allocation does not perturb the person's random stream
+      RandomNumberGenerator nhsRandom =
+          new DefaultRandomNumberGenerator(person.getSeed() ^ NHS_NUMBER_SEED_SALT);
+      attributes.put(Person.IDENTIFIER_NHS_NUMBER,
+          NhsNumberGenerator.getInstance().randomNhsNumber(nhsRandom));
+    }
+
+    attributes.put(Person.COUNTRY, Nation.isoCountryCode());
+    attributes.put(Person.NATION, Nation.configuredCode());
 
     String city = (String) attributes.get(Person.CITY);
     Location location = (Location) attributes.get(Person.LOCATION);
@@ -356,8 +374,8 @@ public final class LifecycleModule extends Module {
               if (person.attributes.containsKey(Person.MIDDLE_NAME)) {
                 middleName = (String) person.attributes.get(Person.MIDDLE_NAME);
               }
-              String language = (String) person.attributes.get(Person.FIRST_LANGUAGE);
-              String newLastName = Names.fakeLastName(language, person);
+              String origin = (String) person.attributes.get(Person.NAME_ORIGIN);
+              String newLastName = Names.fakeLastName(origin, person);
               person.attributes.put(Person.LAST_NAME, newLastName);
               if (middleName != null) {
                 person.attributes.put(Person.NAME,
@@ -1287,6 +1305,7 @@ public final class LifecycleModule extends Module {
     Attributes.inventory(attributes, m, Person.ETHNICITY, true, false, null);
     Attributes.inventory(attributes, m, Person.FIRST_NAME, true, false, null);
     Attributes.inventory(attributes, m, Person.FIRST_LANGUAGE, true, false, null);
+    Attributes.inventory(attributes, m, Person.NAME_ORIGIN, false, true, "english");
     Attributes.inventory(attributes, m, Person.GENDER, true, false, "M");
     Attributes.inventory(attributes, m, Person.IDENTIFIER_DRIVERS, true, false, null);
     Attributes.inventory(attributes, m, Person.IDENTIFIER_PASSPORT, true, false, null);
@@ -1317,6 +1336,8 @@ public final class LifecycleModule extends Module {
     Attributes.inventory(attributes, m, Person.BIRTH_CITY, false, true, "Bedford");
     Attributes.inventory(attributes, m, Person.BIRTH_COUNTRY, false, true, COUNTRY_CODE);
     Attributes.inventory(attributes, m, Person.BIRTH_STATE, false, true, "Massachusetts");
+    Attributes.inventory(attributes, m, Person.COUNTRY, false, true, COUNTRY_CODE);
+    Attributes.inventory(attributes, m, Person.NATION, false, true, "GB-ENG");
     Attributes.inventory(attributes, m, Person.BIRTHDATE, false, true, null);
     Attributes.inventory(attributes, m, Person.BIRTHPLACE, false, true, "Boston");
     Attributes.inventory(attributes, m, Person.ETHNICITY, false, true, null);
@@ -1326,6 +1347,7 @@ public final class LifecycleModule extends Module {
     Attributes.inventory(attributes, m, Person.IDENTIFIER_DRIVERS, false, true, null);
     Attributes.inventory(attributes, m, Person.IDENTIFIER_PASSPORT, false, true, null);
     Attributes.inventory(attributes, m, Person.IDENTIFIER_SSN, false, true, "999-99-9999");
+    Attributes.inventory(attributes, m, Person.IDENTIFIER_NHS_NUMBER, false, true, "9999999999");
     Attributes.inventory(attributes, m, Person.LAST_NAME, false, true, null);
     Attributes.inventory(attributes, m, Person.MAIDEN_NAME, false, true, null);
     Attributes.inventory(attributes, m, Person.MARITAL_STATUS, false, true, "M");
