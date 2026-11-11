@@ -13,8 +13,6 @@ import com.google.gson.JsonParser;
 
 import java.awt.geom.Point2D;
 import java.io.IOException;
-import java.io.StringWriter;
-import java.io.Writer;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -422,11 +420,6 @@ public class FhirR4 {
    * @return FHIR Bundle containing the Person's health record
    */
   public static Bundle convertToFHIR(Person person, long stopTime) {
-    return convertToFHIR(person, stopTime, null);
-  }
-
-  /** Build either a complete FHIR model or an internal context for direct clinical JSON. */
-  private static Bundle convertToFHIR(Person person, long stopTime, DirectFhirR4 direct) {
     Bundle bundle = new Bundle();
     if (TRANSACTION_BUNDLE) {
       bundle.setType(BundleType.TRANSACTION);
@@ -441,21 +434,13 @@ public class FhirR4 {
 
       if (shouldExport(Condition.class)) {
         for (HealthRecord.Entry condition : encounter.conditions) {
-          if (direct == null) {
-            condition(person, personEntry, bundle, encounterEntry, condition);
-          } else {
-            direct.condition(bundle, personEntry, encounterEntry, person, condition);
-          }
+          condition(person, personEntry, bundle, encounterEntry, condition);
         }
       }
 
       if (shouldExport(AllergyIntolerance.class)) {
         for (HealthRecord.Allergy allergy : encounter.allergies) {
-          if (direct == null) {
-            allergy(personEntry, bundle, encounterEntry, allergy);
-          } else {
-            direct.allergy(bundle, personEntry, allergy);
-          }
+          allergy(personEntry, bundle, encounterEntry, allergy);
         }
       }
 
@@ -467,48 +452,28 @@ public class FhirR4 {
         // Observation resources in v4 don't support Attachments
         if (observation.value instanceof Attachment) {
           if (shouldExportMedia) {
-            if (direct == null) {
-              media(personEntry, bundle, encounterEntry, observation);
-            } else {
-              direct.media(bundle, personEntry, encounterEntry, observation);
-            }
+            media(personEntry, bundle, encounterEntry, observation);
           }
         } else if (shouldExportObservation) {
-          if (direct == null) {
-            observation(person.getNation(), personEntry, bundle, encounterEntry, observation);
-          } else {
-            direct.observation(bundle, personEntry, encounterEntry, observation);
-          }
+          observation(person.getNation(), personEntry, bundle, encounterEntry, observation);
         }
       }
 
       if (shouldExport(org.hl7.fhir.r4.model.Procedure.class)) {
         for (Procedure procedure : encounter.procedures) {
-          if (direct == null) {
-            procedure(person, personEntry, bundle, encounterEntry, procedure);
-          } else {
-            direct.procedure(bundle, personEntry, encounterEntry, person, procedure);
-          }
+          procedure(person, personEntry, bundle, encounterEntry, procedure);
         }
       }
 
       if (shouldExport(Device.class)) {
         for (HealthRecord.Device device : encounter.devices) {
-          if (direct == null) {
-            device(personEntry, bundle, device);
-          } else {
-            direct.device(bundle, personEntry, device);
-          }
+          device(personEntry, bundle, device);
         }
       }
 
       if (shouldExport(SupplyDelivery.class)) {
         for (HealthRecord.Supply supply : encounter.supplies) {
-          if (direct == null) {
-            supplyDelivery(personEntry, bundle, supply, encounter);
-          } else {
-            direct.supply(bundle, personEntry, supply);
-          }
+          supplyDelivery(personEntry, bundle, supply, encounter);
         }
       }
 
@@ -520,21 +485,13 @@ public class FhirR4 {
 
       if (shouldExport(Immunization.class)) {
         for (HealthRecord.Entry immunization : encounter.immunizations) {
-          if (direct == null) {
-            immunization(personEntry, bundle, encounterEntry, immunization);
-          } else {
-            direct.immunization(bundle, personEntry, encounterEntry, immunization);
-          }
+          immunization(personEntry, bundle, encounterEntry, immunization);
         }
       }
 
       if (shouldExport(DiagnosticReport.class)) {
         for (Report report : encounter.reports) {
-          if (direct == null) {
-            report(personEntry, bundle, encounterEntry, report);
-          } else {
-            direct.report(bundle, personEntry, encounterEntry, report);
-          }
+          report(personEntry, bundle, encounterEntry, report);
         }
       }
 
@@ -553,11 +510,7 @@ public class FhirR4 {
 
       if (shouldExport(org.hl7.fhir.r4.model.ImagingStudy.class)) {
         for (ImagingStudy imagingStudy : encounter.imagingStudies) {
-          if (direct == null) {
-            imagingStudy(personEntry, bundle, encounterEntry, imagingStudy);
-          } else {
-            direct.imagingStudy(bundle, personEntry, encounterEntry, imagingStudy);
-          }
+          imagingStudy(personEntry, bundle, encounterEntry, imagingStudy);
         }
       }
 
@@ -680,38 +633,12 @@ public class FhirR4 {
    *     record
    */
   public static String convertToFHIRJson(Person person, long stopTime) {
-    if (Config.getAsBoolean("exporter.fhir.direct_json", false)) {
-      StringWriter output = new StringWriter();
-      try {
-        writeDirectJson(person, stopTime, output,
-            Config.getAsBoolean("exporter.pretty_print", true));
-      } catch (IOException e) {
-        throw new java.io.UncheckedIOException(e);
-      }
-      return output.toString();
-    }
     Bundle bundle = convertToFHIR(person, stopTime);
     Boolean pretty = Config.getAsBoolean("exporter.pretty_print", true);
     String bundleJson = FHIR_CTX.newJsonParser().setPrettyPrint(pretty)
         .encodeResourceToString(bundle);
 
     return bundleJson;
-  }
-
-  /**
-   * Write a patient Bundle, streaming common clinical resources from the source record.
-   * The output writer remains owned by the caller. Flexporter callers must use the model path.
-   * @param person source patient
-   * @param stopTime simulation stop time
-   * @param output destination
-   * @param pretty whether to indent JSON
-   * @throws IOException if output fails
-   */
-  public static void writeDirectJson(Person person, long stopTime, Writer output, boolean pretty)
-      throws IOException {
-    DirectFhirR4 direct = new DirectFhirR4();
-    Bundle context = convertToFHIR(person, stopTime, direct);
-    direct.write(context, output, pretty);
   }
 
   /**
@@ -1071,7 +998,7 @@ public class FhirR4 {
    * @param to the CodeableConcept to add the translation to
    * @param rand a source of randomness
    */
-  static void addTranslation(Code from, CodeableConcept to, RandomNumberGenerator rand) {
+  private static void addTranslation(Code from, CodeableConcept to, RandomNumberGenerator rand) {
     for (Map.Entry<String, CodeMapper> entry : Exporter.getCodeMappers().entrySet()) {
       CodeMapper mapper = entry.getValue();
       if (mapper != null && mapper.canMap(from)) {
@@ -2129,62 +2056,42 @@ public class FhirR4 {
     observationResource.setEffective(convertFhirDateTime(observation.start, true));
     observationResource.setIssued(new Date(observation.start));
 
-    List<String> profiles = observationProfiles(observation);
-    if (!profiles.isEmpty()) {
-      Meta meta = new Meta();
-      profiles.forEach(meta::addProfile);
-      observationResource.setMeta(meta);
-    }
-    if (USE_US_CORE_IG && useUSCore5() && "exam".equals(observation.category)) {
-      observationResource.addCategory().addCoding().setCode("clinical-test")
-          .setSystem("http://hl7.org/fhir/us/core/CodeSystem/us-core-observation-category")
-          .setDisplay("Clinical Test");
-    }
-
-    BundleEntryComponent entry = newEntry(bundle, observationResource, observation.uuid.toString());
-    observation.fullUrl = entry.getFullUrl();
-    return entry;
-  }
-
-  /** Select the profiles once for both model and direct JSON exports. */
-  static List<String> observationProfiles(Observation observation) {
-    List<String> profiles = new ArrayList<>();
-    // Match the original selection, including its use of the last additional code.
-    Code code = observation.codes.get(observation.codes.size() - 1);
     if (USE_US_CORE_IG) {
+      Meta meta = new Meta();
       // add the specific profile based on code
       String codeMappingUri = US_CORE_MAPPING.get(LOINC_URI, code.code);
       if (codeMappingUri != null) {
-        profiles.add(codeMappingUri);
+        meta.addProfile(codeMappingUri);
         if (!codeMappingUri.contains("/us/core/") && "vital-signs".equals(observation.category)) {
-          profiles.add("http://hl7.org/fhir/us/core/StructureDefinition/us-core-vital-signs");
+          meta.addProfile("http://hl7.org/fhir/us/core/StructureDefinition/us-core-vital-signs");
         }
       } else if (observation.report != null && "laboratory".equals(observation.category)) {
-        profiles.add("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-lab");
+        meta.addProfile("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-lab");
       }
+
 
       if (observation.category != null) {
         if (useUSCore6() || useUSCore7()) {
           switch (observation.category) {
             case "imaging":
-              profiles.add("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-clinical-result");
+              meta.addProfile("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-clinical-result");
               break;
             case "social-history":
               if (code.code.equals("82810-3")) {
-                profiles.add("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-pregnancystatus");
+                meta.addProfile("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-pregnancystatus");
               } else {
-                profiles.add("http://hl7.org/fhir/us/core/StructureDefinition/us-core-simple-observation");
+                meta.addProfile("http://hl7.org/fhir/us/core/StructureDefinition/us-core-simple-observation");
               }
 
               break;
             case "survey":
-              profiles.add("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-screening-assessment");
+              meta.addProfile("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-screening-assessment");
               break;
             case "exam":
-              profiles.add("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-clinical-result");
+              meta.addProfile("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-clinical-result");
               break;
             case "laboratory":
-              profiles.add("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-lab");
+              meta.addProfile("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-lab");
               break;
             default:
               // do nothing
@@ -2192,20 +2099,23 @@ public class FhirR4 {
         } else if (useUSCore5()) {
           switch (observation.category) {
             case "imaging":
-              profiles.add("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-imaging");
+              meta.addProfile("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-imaging");
               break;
             case "social-history":
-              profiles.add("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-social-history");
+              meta.addProfile("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-social-history");
               break;
             case "survey":
-              profiles.add("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-survey");
+              meta.addProfile("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-survey");
               // note that the -sdoh-assessment profile is a subset of -survey,
               // those are handled by code in US_CORE_MAPPING above
               break;
             case "exam":
               // this one is a little nebulous -- are all exams also clinical tests?
-              profiles.add("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-clinical-test");
+              meta.addProfile("http://hl7.org/fhir/us/core/StructureDefinition/us-core-observation-clinical-test");
 
+              observationResource.addCategory().addCoding().setCode("clinical-test")
+                  .setSystem("http://hl7.org/fhir/us/core/CodeSystem/us-core-observation-category")
+                  .setDisplay("Clinical Test");
               break;
             default:
               // do nothing
@@ -2213,8 +2123,14 @@ public class FhirR4 {
         }
       }
 
+      if (meta.hasProfile()) {
+        observationResource.setMeta(meta);
+      }
     }
-    return profiles;
+
+    BundleEntryComponent entry = newEntry(bundle, observationResource, observation.uuid.toString());
+    observation.fullUrl = entry.getFullUrl();
+    return entry;
   }
 
   static Type mapValueToFHIRType(Object value, String unit) {
@@ -3709,7 +3625,7 @@ public class FhirR4 {
    * @param resourceID The Resource ID to assign
    * @return the created Entry
    */
-  static BundleEntryComponent newEntry(Bundle bundle, Resource resource,
+  private static BundleEntryComponent newEntry(Bundle bundle, Resource resource,
       String resourceID) {
     BundleEntryComponent entry = bundle.addEntry();
 
@@ -3743,7 +3659,7 @@ public class FhirR4 {
    * @param code Code to find
    * @return entry for the matching Condition, or null if none is found
    */
-  static BundleEntryComponent findConditionResourceByCode(Bundle bundle, String code) {
+  private static BundleEntryComponent findConditionResourceByCode(Bundle bundle, String code) {
     for (BundleEntryComponent entry : bundle.getEntry()) {
       if (entry.getResource().fhirType().equals("Condition")) {
         Condition condition = (Condition) entry.getResource();
