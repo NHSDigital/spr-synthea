@@ -10,6 +10,8 @@ import java.net.URL;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.Optional;
 
 import org.junit.AfterClass;
@@ -20,6 +22,8 @@ import org.junit.rules.TemporaryFolder;
 import org.mitre.synthea.TestHelper;
 import org.mitre.synthea.engine.Generator;
 import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.DefaultRandomNumberGenerator;
+import org.mitre.synthea.helpers.NhsNumberGenerator;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.PayerManager;
 
@@ -51,6 +55,14 @@ public class EntityManagerTest {
     Assert.assertTrue(em.validate());
   }
 
+  @Test
+  public void suppliedNhsNumbers() throws IOException {
+    String rawJSON = Utilities.readResource("identity/test_records.json");
+    EntityManager em = EntityManager.fromJSON(rawJSON);
+    Assert.assertEquals(new LinkedHashSet<>(Arrays.asList("9434765919", "4010232137")),
+        em.getNhsNumbers());
+  }
+
   /**
    * Clean up and reset the Generator.
    */
@@ -60,6 +72,7 @@ public class EntityManagerTest {
     Generator.entityManager = null;
     TestHelper.loadTestProperties();
     PayerManager.clear();
+    NhsNumberGenerator.reset();
   }
 
   @Test
@@ -79,7 +92,21 @@ public class EntityManagerTest {
     generator.options.overflow = false;
     URL url = Resources.getResource("identity/test_records.json");
     generator.options.fixedRecordPath = new File(url.toURI());
-    generator.run();
+    // The only number in this range is the seed's supplied 9434765919.
+    Config.set("generate.patient.nhs_number.range.start", "943476591");
+    Config.set("generate.patient.nhs_number.range.end", "943476591");
+    NhsNumberGenerator.reset();
+    try {
+      generator.run();
+      IllegalStateException exhausted = Assert.assertThrows(IllegalStateException.class,
+          () -> NhsNumberGenerator.getInstance()
+              .randomNhsNumber(new DefaultRandomNumberGenerator(0)));
+      Assert.assertEquals("Configured NHS number range exhausted", exhausted.getMessage());
+    } finally {
+      Config.remove("generate.patient.nhs_number.range.start");
+      Config.remove("generate.patient.nhs_number.range.end");
+      NhsNumberGenerator.reset();
+    }
     Path jsonExportFolder = baseDirectory.resolve("json");
     Optional<Path> jsonExport = Files.list(jsonExportFolder)
         .filter(path -> path.toString().endsWith(".json")).findFirst();
