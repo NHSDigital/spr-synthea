@@ -8,6 +8,8 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mitre.synthea.engine.Module;
+import org.mitre.synthea.engine.State;
 import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.NhsNumberGenerator;
 import org.mitre.synthea.helpers.PhysiologyValueGenerator;
@@ -82,6 +84,19 @@ public class LifecycleModuleTest {
       LifecycleModule.birth(person, 0L);
       assertEquals("GB", person.attributes.get(Person.COUNTRY));
       assertEquals("GB-ENG", person.attributes.get(Person.NATION));
+    });
+  }
+
+  @Test
+  public void testBirthStoresCanonicalNation() {
+    // hypertension.json routes on nation == "GB-ENG", so a lower-case or padded code must not
+    // give England demographics with the US prescribing pathway
+    inNation(" gb-eng ", () -> {
+      Person person = newbornWithDemographics(12345L, "F");
+      LifecycleModule.birth(person, 0L);
+      assertEquals("GB-ENG", person.attributes.get(Person.NATION));
+      State router = Module.getModuleByPath("hypertension").getState("Prescribe_Medication");
+      assertEquals("Prescribe_Medication_England", router.transition(person, 0L));
     });
   }
 

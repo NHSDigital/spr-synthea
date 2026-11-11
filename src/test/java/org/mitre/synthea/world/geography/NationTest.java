@@ -51,6 +51,16 @@ public class NationTest {
   }
 
   @Test
+  public void configuredCodeIsCanonical() {
+    Config.set(Nation.COUNTRY_CODE_KEY, " gb-eng ");
+    assertSame(Nation.ENGLAND, Nation.current());
+    assertEquals("GB-ENG", Nation.configuredCode());
+    Config.set(Nation.COUNTRY_CODE_KEY, "us");
+    assertEquals("US", Nation.configuredCode());
+    assertEquals("US", Nation.isoCountryCode());
+  }
+
+  @Test
   public void otherUkNationsFailClearly() {
     assertFails("GB-WLS", "WALES");
     assertFails("GB-CYM", "WALES");
