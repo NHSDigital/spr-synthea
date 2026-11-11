@@ -1,0 +1,13 @@
+id,name,address,city,state,zip,lat,lon,phone,emergency,hasSpecialties,GENERAL PRACTICE
+1,Test Hospital 1,1 Main Street,Sacramento,CA,95814,38.50,-121.49,555-0100,true,true,1
+2,Test Hospital 2,2 Main Street,Sacramento,CA,95814,38.51,-121.49,555-0100,true,true,11
+3,Test Hospital 3,3 Main Street,Sacramento,CA,95814,38.52,-121.49,555-0100,true,true,1
+4,Test Hospital 4,4 Main Street,Sacramento,CA,95814,38.53,-121.49,555-0100,true,true,1
+5,Test Hospital 5,5 Main Street,Sacramento,CA,95814,38.54,-121.49,555-0100,true,true,1
+6,Test Hospital 6,6 Main Street,Sacramento,CA,95814,38.55,-121.49,555-0100,true,true,1
+7,Test Hospital 7,7 Main Street,Sacramento,CA,95814,38.56,-121.49,555-0100,true,true,1
+8,Test Hospital 8,8 Main Street,Sacramento,CA,95814,38.57,-121.49,555-0100,true,true,1
+9,Test Hospital 9,9 Main Street,Sacramento,CA,95814,38.58,-121.49,555-0100,true,true,1
+10,Test Hospital 10,10 Main Street,Sacramento,CA,95814,38.59,-121.49,555-0100,true,true,1
+11,Test Hospital 11,11 Main Street,Sacramento,CA,95814,38.60,-121.49,555-0100,true,true,1
+12,Test Hospital 12,12 Main Street,Sacramento,CA,95814,38.61,-121.49,555-0100,true,true,1

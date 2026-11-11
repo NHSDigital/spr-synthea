@@ -110,6 +110,29 @@ public class ProviderTest {
   }
 
   @Test
+  public void testClinicianIdentitiesAreUniqueAcrossProviders() throws Exception {
+    // The second provider has 11 clinicians and there are 12 providers. Identifiers built by
+    // concatenating provider and clinician indexes collide here: "1" + "10" == "11" + "0".
+    Provider.loadProviders(location, "providers/many_clinician_hospitals.csv",
+        ProviderType.HOSPITAL, new HashSet<>(), providerRandom, false);
+    Assert.assertEquals(12, Provider.getProviderList().size());
+    Set<Long> identifiers = new HashSet<>();
+    Set<String> npis = new HashSet<>();
+    int count = 0;
+    for (Provider p : Provider.getProviderList()) {
+      for (ArrayList<Clinician> clinicians : p.clinicianMap.values()) {
+        for (Clinician clinician : clinicians) {
+          Assert.assertTrue("Duplicate clinician identifier " + clinician.identifier,
+              identifiers.add(clinician.identifier));
+          Assert.assertTrue("Duplicate clinician NPI " + clinician.npi, npis.add(clinician.npi));
+          count++;
+        }
+      }
+    }
+    Assert.assertEquals(22, count);
+  }
+
+  @Test
   public void testAllFacilitiesHaveAnIdOrNpi() {
     Provider.loadProviders(location, providerRandom);
     for (Provider p : Provider.getProviderList()) {
