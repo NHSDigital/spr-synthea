@@ -50,11 +50,11 @@ public class EnglandProvidersTest {
     main.load(Config.class.getResourceAsStream("/synthea.properties"));
     assertEquals("GB-ENG", main.getProperty(Nation.COUNTRY_CODE_KEY));
     EnglandTestConfig.apply();
-    assertEquals(Nation.ENGLAND, Nation.current());
-    assertEquals(REGION, Nation.defaultState());
+    assertEquals(Nation.ENGLAND, Nation.configured());
+    assertEquals(REGION, Nation.ENGLAND.defaultState());
     assertEquals("geography/england/providers/hospitals.csv",
-        Nation.Resource.HOSPITALS.path());
-    location = new Location(REGION, null);
+        Nation.Resource.HOSPITALS.path(Nation.ENGLAND));
+    location = new Location(Nation.ENGLAND, REGION, null);
   }
 
   /** Restore the US test configuration. */

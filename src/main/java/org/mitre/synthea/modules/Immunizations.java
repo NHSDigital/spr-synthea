@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -40,23 +41,20 @@ public class Immunizations {
   /** Default (US/CDC) immunization schedule resource. */
   public static final String DEFAULT_SCHEDULE = "immunization_schedule.json";
 
-  private static String loadedScheduleFile;
+  /** Loaded schedules, by resource path. */
   @SuppressWarnings("rawtypes")
-  private static Map<String, Map> loadedSchedule;
+  private static final Map<String, Map<String, Map>> SCHEDULES = new ConcurrentHashMap<>();
 
   /**
-   * Get the immunization schedule configured by "generate.immunization_schedule".
-   * The schedule is reloaded if the configured file changes.
+   * Get a nation's immunization schedule (or the one configured by
+   * "generate.immunization_schedule").
+   * @param nation the nation.
    * @return Map of immunization name to schedule definition.
    */
   @SuppressWarnings("rawtypes")
-  public static synchronized Map<String, Map> getSchedule() {
-    String filename = Nation.Resource.IMMUNIZATION_SCHEDULE.path();
-    if (loadedSchedule == null || !filename.equals(loadedScheduleFile)) {
-      loadedSchedule = loadImmunizationSchedule(filename);
-      loadedScheduleFile = filename;
-    }
-    return loadedSchedule;
+  public static Map<String, Map> getSchedule(Nation nation) {
+    return SCHEDULES.computeIfAbsent(Nation.Resource.IMMUNIZATION_SCHEDULE.path(nation),
+        Immunizations::loadImmunizationSchedule);
   }
 
   @SuppressWarnings({ "unchecked", "rawtypes" })
@@ -88,7 +86,7 @@ public class Immunizations {
       person.attributes.put(IMMUNIZATIONS, immunizationsGiven);
     }
 
-    Map<String, Map> immunizationSchedule = getSchedule();
+    Map<String, Map> immunizationSchedule = getSchedule(person.getNation());
     for (String immunization : immunizationSchedule.keySet()) {
       int series = immunizationDue(immunization, person, time, immunizationsGiven);
       if (series > 0) {
@@ -130,7 +128,7 @@ public class Immunizations {
 
     // Don't administer if the immunization wasn't historically available at the date of the
     // encounter
-    Map schedule = getSchedule().get(immunization);
+    Map schedule = getSchedule(person.getNation()).get(immunization);
     Number firstAvailable = (Number) schedule.getOrDefault("first_available", 1900);
     if (time < Utilities.convertCalendarYearsToTime(firstAvailable.intValue())) {
       return -1;
@@ -191,11 +189,12 @@ public class Immunizations {
   /**
    * Get all of the Codes this module uses, for inventory purposes.
    *
+   * @param nation the nation whose schedule to list.
    * @return Collection of all codes and concepts this module uses
    */
   @SuppressWarnings("rawtypes")
-  public static Collection<Code> getAllCodes() {
-    List<Map> rawCodes = (List<Map>) getSchedule().values()
+  public static Collection<Code> getAllCodes(Nation nation) {
+    List<Map> rawCodes = (List<Map>) getSchedule(nation).values()
         .stream().map(m -> (Map)m.get("code")).collect(Collectors.toList());
 
     List<Code> convertedCodes = new ArrayList<Code>(rawCodes.size());
@@ -213,12 +212,13 @@ public class Immunizations {
 
   /**
    * Get the maximum number of vaccine doses for a particular code.
+   * @param nation The nation whose schedule to use.
    * @param code The vaccine code.
    * @return The maximum number of doses to be administered.
    */
   @SuppressWarnings("rawtypes")
-  public static int getMaximumDoses(String code) {
-    Map<String, Map> immunizationSchedule = getSchedule();
+  public static int getMaximumDoses(Nation nation, String code) {
+    Map<String, Map> immunizationSchedule = getSchedule(nation);
     for (String immunization : immunizationSchedule.keySet()) {
       Map icode = (Map) immunizationSchedule.get(immunization).get("code");
       if (icode.get("code").equals(code)) {

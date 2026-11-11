@@ -33,6 +33,7 @@ import org.mitre.synthea.export.CDWExporter;
 import org.mitre.synthea.export.Exporter;
 import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.DefaultRandomNumberGenerator;
+import org.mitre.synthea.helpers.NationalIdGenerator;
 import org.mitre.synthea.helpers.RandomNumberGenerator;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.identity.Entity;
@@ -70,6 +71,8 @@ public class Generator {
    */
   public GeneratorOptions options;
   private DefaultRandomNumberGenerator populationRandom;
+  /** Issues everyone in this run their national identifier, e.g. a unique NHS number. */
+  private NationalIdGenerator nationalIds;
   private DefaultRandomNumberGenerator clinicianRandom;
   /**
    * The amount of time per timestep, in milliseconds.
@@ -270,11 +273,11 @@ public class Generator {
 
   private void init() {
     // Fails clearly if generate.geography.country_code names a nation not implemented yet
-    Nation.current();
+    Nation nation = Nation.configured();
     if (options.state == null) {
-      options.state = DEFAULT_STATE != null ? DEFAULT_STATE : Nation.defaultState();
+      options.state = DEFAULT_STATE != null ? DEFAULT_STATE : nation.defaultState();
     }
-    int stateIndex = Location.getIndex(options.state);
+    int stateIndex = Location.getIndex(nation, options.state);
     if (Config.getAsBoolean("exporter.cdw.export")) {
       CDWExporter.getInstance().setKeyStart((stateIndex * 1_000_000) + 1);
     }
@@ -287,7 +290,8 @@ public class Generator {
     this.stop = options.endTime;
     this.referenceTime = options.referenceTime;
 
-    this.location = new Location(options.state, options.city);
+    this.location = new Location(nation, options.state, options.city);
+    this.nationalIds = nation.newNationalIdGenerator();
 
     this.logLevel = Config.get("generate.log_patients.detail", "simple");
 
@@ -759,7 +763,7 @@ public class Generator {
     person.lastUpdated = (long) demoAttributes.get(Person.BIRTHDATE);
     location.setSocialDeterminants(person);
 
-    LifecycleModule.birth(person, person.lastUpdated);
+    LifecycleModule.birth(person, person.lastUpdated, nationalIds);
 
     person.currentModules = Module.getModules(modulePredicate);
 
@@ -790,11 +794,12 @@ public class Generator {
         // Check to see if the seed has changed
         if (! currentSeed.getSeedId().equals(person.attributes.get(Person.IDENTIFIER_SEED_ID))) {
           person.attributes.putAll(currentSeed.demographicAttributesForPerson());
+          Nation nation = location.getNation();
           String state = currentSeed.getState();
           if (state.length() == 2) {
-            state = Location.getStateName(state);
+            state = Location.getStateName(nation, state);
           }
-          Location newLocation = new Location(state, currentSeed.getCity());
+          Location newLocation = new Location(nation, state, currentSeed.getCity());
           newLocation.assignPoint(person, currentSeed.getCity());
 
         }
@@ -996,11 +1001,13 @@ public class Generator {
    */
   public Map<String, Object> pickFixedDemographics(Entity entity, RandomNumberGenerator random) {
     Seed firstSeed = entity.getSeeds().get(0);
+    Nation nation = this.location.getNation();
     String state = firstSeed.getState();
     if (state.length() == 2) {
-      state = Location.getStateName(state);
+      state = Location.getStateName(nation, state);
     }
     this.location = new Location(
+      nation,
       state,
       firstSeed.getCity());
 

@@ -39,10 +39,10 @@ public class EnglandNamesAndLanguagesTest {
   @BeforeClass
   public static void useEngland() throws Exception {
     EnglandTestConfig.apply();
-    assertEquals("geography/england/names.yml", Nation.Resource.NAMES.path());
+    assertEquals("geography/england/names.yml", Nation.Resource.NAMES.path(Nation.ENGLAND));
     Names.reloadNames();
     ukNames = new SimpleYML(Utilities.readResource("geography/england/names.yml"));
-    england = NationalEthnicity.current();
+    england = NationalEthnicity.of(Nation.ENGLAND);
     assertNotNull(england);
   }
 

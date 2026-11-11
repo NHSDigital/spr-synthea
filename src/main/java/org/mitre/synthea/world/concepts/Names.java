@@ -5,6 +5,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.RandomCollection;
@@ -18,27 +19,50 @@ import org.mitre.synthea.world.geography.Nation;
  */
 public class Names {
 
-  private static SimpleYML names = loadNames();
-  private static NameOrigins origins = new NameOrigins(names);
+  /** Loaded names files, by resource path: one per nation (or generate.names.default_file). */
+  private static final Map<String, NamesFile> NAMES_FILES = new ConcurrentHashMap<>();
 
   /**
-   * Reload the names file for the configured nation (or generate.names.default_file).
+   * Forget the loaded names files, so they are reloaded from the current configuration.
    * Intended for use after the configuration has been changed, e.g. in tests.
    */
   public static void reloadNames() {
-    names = loadNames();
-    origins = new NameOrigins(names);
+    NAMES_FILES.clear();
   }
 
-  private static SimpleYML loadNames() {
-    String filename = Nation.Resource.NAMES.path();
-    try {
-      String namesData = Utilities.readResource(filename, false, true);
-      return new SimpleYML(namesData);
-    } catch (Exception e) {
-      System.err.println("ERROR: unable to load yml: " + filename);
-      e.printStackTrace();
-      throw new ExceptionInInitializerError(e);
+  /**
+   * The names file of a person's nation (see {@link Person#getNation()}).
+   */
+  private static NamesFile namesFile(Person person) {
+    return NAMES_FILES.computeIfAbsent(Nation.Resource.NAMES.path(person.getNation()),
+        NamesFile::load);
+  }
+
+  /** A names file and its name_origins rules. */
+  private static class NamesFile {
+    final SimpleYML names;
+    final NameOrigins origins;
+
+    NamesFile(String filename, SimpleYML names) {
+      this.names = names;
+      this.origins = new NameOrigins(filename, names);
+    }
+
+    static NamesFile load(String filename) {
+      try {
+        String namesData = Utilities.readResource(filename, false, true);
+        return new NamesFile(filename, new SimpleYML(namesData));
+      } catch (IllegalStateException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new IllegalStateException("Unable to load names file " + filename, e);
+      }
+    }
+
+    @SuppressWarnings("unchecked")
+    List<String> namesFor(String origin, String list) {
+      String key = NameOrigins.hasLists(names, origin) ? origin : origins.fallback;
+      return (List<String>) ((Map<String, Object>) names.get(key)).get(list);
     }
   }
 
@@ -55,7 +79,7 @@ public class Names {
     private final Set<String> referenced = new LinkedHashSet<>();
 
     @SuppressWarnings("unchecked")
-    NameOrigins(SimpleYML names) {
+    NameOrigins(String filename, SimpleYML names) {
       Map<String, Object> section = (Map<String, Object>) names.get("name_origins");
       Map<String, Number> defaultWeights;
       if (section == null) {
@@ -88,7 +112,7 @@ public class Names {
       referenced.addAll(byLanguage.values());
       for (String origin : referenced) {
         if (!hasLists(names, origin)) {
-          throw new IllegalStateException("Names file " + Nation.Resource.NAMES.path()
+          throw new IllegalStateException("Names file " + filename
               + " refers to name origin '" + origin + "' without M, F and family lists");
         }
       }
@@ -137,7 +161,7 @@ public class Names {
    * @return the name origin, e.g. "english" or "indian".
    */
   public static String nameOrigin(String language, String ethnicCategory, Person person) {
-    return origins.pick(language, ethnicCategory, person);
+    return namesFile(person).origins.pick(language, ethnicCategory, person);
   }
 
   /**
@@ -148,12 +172,6 @@ public class Names {
   public static String nameOrigin(Person person) {
     return nameOrigin((String) person.attributes.get(Person.FIRST_LANGUAGE),
         (String) person.attributes.get(Person.ETHNIC_CATEGORY), person);
-  }
-
-  @SuppressWarnings("unchecked")
-  private static List<String> namesFor(String origin, String list) {
-    String key = NameOrigins.hasLists(names, origin) ? origin : origins.fallback;
-    return (List<String>) ((Map<String, Object>) names.get(key)).get(list);
   }
 
   /**
@@ -174,7 +192,7 @@ public class Names {
    * @return First name.
    */
   public static String fakeFirstName(String gender, String origin, Person person) {
-    List<String> choices = namesFor(origin, gender);
+    List<String> choices = namesFile(person).namesFor(origin, gender);
 
     // pick a random item from the list
     String name = choices.get(person.randInt(choices.size()));
@@ -196,7 +214,7 @@ public class Names {
    * @return Surname or Family Name.
    */
   public static String fakeLastName(String origin, Person person) {
-    List<String> choices = namesFor(origin, "family");
+    List<String> choices = namesFile(person).namesFor(origin, "family");
     // pick a random item from the list
     String name = choices.get(person.randInt(choices.size()));
 
@@ -217,7 +235,9 @@ public class Names {
   @SuppressWarnings("unchecked")
   public static String fakeAddress(boolean includeLine2, Person person) {
     int number = person.randInt(1000) + 100;
-    List<String> n = namesFor(origins.fallback, "family");
+    NamesFile file = namesFile(person);
+    SimpleYML names = file.names;
+    List<String> n = file.namesFor(file.origins.fallback, "family");
     // for now just use family names as the street name.
     // could expand with a few more but probably not worth it
     String streetName = n.get(person.randInt(n.size()));

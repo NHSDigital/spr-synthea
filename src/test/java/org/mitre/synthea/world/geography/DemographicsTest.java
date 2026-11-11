@@ -26,7 +26,7 @@ public class DemographicsTest {
   public static void setUp() throws IOException {
     demographicsFile = Config.get("generate.demographics.default_file");
     Config.set("generate.demographics.default_file", "geography/test_demographics.csv");
-    Table pa = Demographics.load("Pennsylvania");
+    Table pa = Demographics.load(Nation.USA, "Pennsylvania");
     philly = (Demographics) pa.get("Pennsylvania", "27237");
     random = new DefaultRandomNumberGenerator(0);
   }

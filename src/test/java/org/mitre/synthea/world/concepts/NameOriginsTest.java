@@ -78,6 +78,8 @@ public class NameOriginsTest {
     try {
       useNames("name_origins: {by_language: {welsh: welsh}, default: {english: 1}}\n"
           + "english: {M: [Tom], F: [Ann], family: [Smith]}\n");
+      // names files are loaded (and checked) when first used
+      Names.nameOrigin("english", null, new Person(1L));
       fail("expected an error for the missing welsh lists");
     } catch (IllegalStateException e) {
       assertTrue(e.getMessage(), e.getMessage().contains("'welsh'"));

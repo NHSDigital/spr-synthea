@@ -14,12 +14,11 @@ import org.mitre.synthea.export.rif.identifiers.Passport;
 import org.mitre.synthea.helpers.Attributes;
 import org.mitre.synthea.helpers.Attributes.Inventory;
 import org.mitre.synthea.helpers.Config;
-import org.mitre.synthea.helpers.DefaultRandomNumberGenerator;
-import org.mitre.synthea.helpers.NhsNumberGenerator;
+import org.mitre.synthea.helpers.NationalIdGenerator;
 import org.mitre.synthea.helpers.PhysiologyValueGenerator;
 import org.mitre.synthea.helpers.RandomCollection;
-import org.mitre.synthea.helpers.RandomNumberGenerator;
 import org.mitre.synthea.helpers.SimpleCSV;
+import org.mitre.synthea.helpers.SocialSecurityNumberGenerator;
 import org.mitre.synthea.helpers.TrendingValueGenerator;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.modules.BloodPressureValueGenerator.SysDias;
@@ -66,8 +65,6 @@ public final class LifecycleModule extends Module {
   /** Attribute key for a person's probability to follow doctor's orders and recommendations */
   public static final String ADHERENCE_PROBABILITY = "adherence probability";
 
-  private static final String COUNTRY_CODE = Nation.isoCountryCode();
-  private static final long NHS_NUMBER_SEED_SALT = 0x4E48534E554D4245L;
   private static final Double MIDDLE_NAME_PROBABILITY =
       Config.getAsDouble("generate.middle_names", 0.80);
 
@@ -152,8 +149,11 @@ public final class LifecycleModule extends Module {
    * For unto us a child is born.
    * @param person The baby.
    * @param time The time of birth.
+   * @param nationalIds The run's generator of national identifiers (e.g. NHS numbers), shared
+   *     by everyone in the run so that identifiers are unique; see
+   *     {@link Nation#newNationalIdGenerator()}.
    */
-  public static void birth(Person person, long time) {
+  public static void birth(Person person, long time, NationalIdGenerator nationalIds) {
     Map<String, Object> attributes = person.attributes;
 
     attributes.put(Person.ID, person.randUUID().toString());
@@ -195,21 +195,21 @@ public final class LifecycleModule extends Module {
       attributes.put(Person.MULTIPLE_BIRTH_STATUS, person.randInt(3) + 1);
     }
 
-    String ssn = "999-" + ((person.randInt(99 - 10 + 1) + 10)) + "-"
-        + ((person.randInt(9999 - 1000 + 1) + 1000));
-    attributes.put(Person.IDENTIFIER_SSN, ssn);
+    // Everyone gets an SSN, as upstream: US exporters expect one, and drawing it keeps each
+    // seeded person's random stream (and so the rest of their record) the same in every nation.
+    attributes.put(Person.IDENTIFIER_SSN, SocialSecurityNumberGenerator.randomSsn(person));
 
-    Nation nation = Nation.current();
-    if (nation.usesNhsNumbers() && attributes.get(Person.IDENTIFIER_NHS_NUMBER) == null) {
-      // Use a dedicated RNG so NHS number allocation does not perturb the person's random stream
-      RandomNumberGenerator nhsRandom =
-          new DefaultRandomNumberGenerator(person.getSeed() ^ NHS_NUMBER_SEED_SALT);
-      attributes.put(Person.IDENTIFIER_NHS_NUMBER,
-          NhsNumberGenerator.getInstance().randomNhsNumber(nhsRandom));
+    String nationalId = (String) attributes.get(nationalIds.attribute());
+    if (nationalId == null) {
+      attributes.put(nationalIds.attribute(), nationalIds.generate(person));
+    } else {
+      // supplied, e.g. by a fixed record
+      nationalIds.reserve(nationalId);
     }
 
-    attributes.put(Person.COUNTRY, Nation.isoCountryCode());
-    attributes.put(Person.NATION, Nation.configuredCode());
+    Nation nation = person.getNation();
+    attributes.put(Person.COUNTRY, nation.isoCountryCode());
+    attributes.put(Person.NATION, nation.code());
 
     String city = (String) attributes.get(Person.CITY);
     Location location = (Location) attributes.get(Person.LOCATION);
@@ -1334,9 +1334,11 @@ public final class LifecycleModule extends Module {
     Attributes.inventory(attributes, m, Person.ADDRESS, false, true, null);
     Attributes.inventory(attributes, m, Person.ALCOHOLIC, false, true, "Boolean");
     Attributes.inventory(attributes, m, Person.BIRTH_CITY, false, true, "Bedford");
-    Attributes.inventory(attributes, m, Person.BIRTH_COUNTRY, false, true, COUNTRY_CODE);
+    Attributes.inventory(attributes, m, Person.BIRTH_COUNTRY, false, true,
+        Nation.configured().isoCountryCode());
     Attributes.inventory(attributes, m, Person.BIRTH_STATE, false, true, "Massachusetts");
-    Attributes.inventory(attributes, m, Person.COUNTRY, false, true, COUNTRY_CODE);
+    Attributes.inventory(attributes, m, Person.COUNTRY, false, true,
+        Nation.configured().isoCountryCode());
     Attributes.inventory(attributes, m, Person.NATION, false, true, "GB-ENG");
     Attributes.inventory(attributes, m, Person.BIRTHDATE, false, true, null);
     Attributes.inventory(attributes, m, Person.BIRTHPLACE, false, true, "Boston");

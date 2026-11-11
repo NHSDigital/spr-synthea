@@ -29,6 +29,7 @@ import org.mitre.synthea.modules.Immunizations;
 import org.mitre.synthea.modules.LifecycleModule;
 import org.mitre.synthea.world.concepts.Costs;
 import org.mitre.synthea.world.concepts.HealthRecord.Code;
+import org.mitre.synthea.world.geography.Nation;
 
 /**
  * Task class to export a report of all clinical concepts
@@ -89,7 +90,8 @@ public class Concepts {
     inventoryCodes(concepts, DeathModule.getAllCodes(), DeathModule.class.getSimpleName());
     inventoryCodes(concepts, EncounterModule.getAllCodes(), EncounterModule.class.getSimpleName());
     // HealthInsuranceModule has no codes
-    inventoryCodes(concepts, Immunizations.getAllCodes(), Immunizations.class.getSimpleName());
+    inventoryCodes(concepts, Immunizations.getAllCodes(Nation.configured()),
+        Immunizations.class.getSimpleName());
     inventoryCodes(concepts, LifecycleModule.getAllCodes(), LifecycleModule.class.getSimpleName());
     // QualityOfLifeModule adds no new codes to patients
 

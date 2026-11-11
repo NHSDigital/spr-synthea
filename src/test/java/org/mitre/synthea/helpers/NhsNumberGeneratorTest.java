@@ -19,6 +19,7 @@ import java.util.concurrent.Future;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mitre.synthea.world.agents.Person;
 
 public class NhsNumberGeneratorTest {
   private static final String[] KEYS = {"generate.patient.nhs_number.range.start",
@@ -44,7 +45,6 @@ public class NhsNumberGeneratorTest {
         Config.set(key, value);
       }
     });
-    NhsNumberGenerator.reset();
   }
 
   private static boolean weightedSumIsDivisibleBy11(String number) {
@@ -186,10 +186,23 @@ public class NhsNumberGeneratorTest {
   }
 
   @Test
-  public void sharedInstanceIsResettable() {
-    NhsNumberGenerator first = NhsNumberGenerator.getInstance();
-    assertTrue(first == NhsNumberGenerator.getInstance());
-    NhsNumberGenerator.reset();
-    assertFalse(first == NhsNumberGenerator.getInstance());
+  public void issuesNhsNumbersForPeople() {
+    NationalIdGenerator generator = new NhsNumberGenerator();
+    assertEquals(Person.IDENTIFIER_NHS_NUMBER, generator.attribute());
+    assertEquals("https://fhir.nhs.uk/Id/nhs-number", generator.system());
+    String number = generator.generate(new Person(42L));
+    assertTrue(NhsNumberGenerator.isValid(number));
+    // a person's number depends only on their seed, in a fresh generator
+    assertEquals(number, new NhsNumberGenerator().generate(new Person(42L)));
+  }
+
+  @Test
+  public void reservedNumbersAreNotIssued() {
+    String first = new NhsNumberGenerator().generate(new Person(42L));
+    NationalIdGenerator generator = new NhsNumberGenerator();
+    generator.reserve(first);
+    String second = generator.generate(new Person(42L));
+    assertTrue(NhsNumberGenerator.isValid(second));
+    assertFalse(first.equals(second));
   }
 }

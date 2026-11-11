@@ -67,19 +67,35 @@ public class Location implements Serializable {
   @JSONSkip
   private Map<String, Map<String, Double>> socialDeterminantsOfHealth;
 
+  /** The nation this location is in, which selects its data files and national rules. */
+  private final Nation nation;
+
   /**
-   * Location is a set of demographic and place information.
+   * Location in the nation configured by {@code generate.geography.country_code}.
    * @param state The full name of the state.
    *     e.g. "Ohio" and not an abbreviation.
    * @param city The full name of the city.
    *     e.g. "Columbus" or null for an entire state.
    */
   public Location(String state, String city) {
+    this(Nation.configured(), state, city);
+  }
+
+  /**
+   * Location is a set of demographic and place information.
+   * @param nation The nation the state is in.
+   * @param state The full name of the state (or region).
+   *     e.g. "Ohio" and not an abbreviation.
+   * @param city The full name of the city.
+   *     e.g. "Columbus" or null for an entire state.
+   */
+  public Location(Nation nation, String state, String city) {
+    this.nation = nation;
     try {
       this.city = city;
       this.state = state;
 
-      Table<String,String,Demographics> allDemographics = Demographics.load(state);
+      Table<String,String,Demographics> allDemographics = Demographics.load(nation, state);
 
       // this still works even if only 1 city given,
       // because allDemographics will only contain that 1 city
@@ -126,7 +142,7 @@ public class Location implements Serializable {
 
     String filename = null;
     try {
-      filename = Nation.Resource.POSTCODES.path();
+      filename = Nation.Resource.POSTCODES.path(nation);
       String csv = Utilities.readResource(filename, true, true);
       List<? extends Map<String,String>> ziplist = SimpleCSV.parse(csv);
 
@@ -151,7 +167,7 @@ public class Location implements Serializable {
 
     socialDeterminantsOfHealth = new HashMap<String, Map<String, Double>>();
     try {
-      filename = Nation.Resource.SDOH.path();
+      filename = Nation.Resource.SDOH.path(nation);
       String csv = Utilities.readResource(filename, true, true);
       List<? extends Map<String,String>> sdohList = SimpleCSV.parse(csv);
 
@@ -322,7 +338,7 @@ public class Location implements Serializable {
     String[] birthPlace = new String[4];
     birthPlace[0] = randomCityName(random);
     birthPlace[1] = this.state;
-    birthPlace[2] = Nation.isoCountryCode();
+    birthPlace[2] = nation.isoCountryCode();
     birthPlace[3] = birthPlace[0] + ", " + birthPlace[1] + ", " + birthPlace[2];
     return birthPlace;
   }
@@ -444,8 +460,16 @@ public class Location implements Serializable {
     }
   }
 
-  private static LinkedHashMap<String, String> stateAbbreviations() {
-    String filename = Nation.Resource.POSTCODES.path();
+  /**
+   * The nation this location is in.
+   * @return the nation.
+   */
+  public Nation getNation() {
+    return nation;
+  }
+
+  private static LinkedHashMap<String, String> stateAbbreviations(Nation nation) {
+    String filename = Nation.Resource.POSTCODES.path(nation);
     return STATE_ABBREVIATIONS.computeIfAbsent(filename, Location::loadAbbreviations);
   }
 
@@ -469,23 +493,25 @@ public class Location implements Serializable {
 
   /**
    * Get the abbreviation for a state.
+   * @param nation The nation the state is in.
    * @param state State name. e.g. "Massachusetts"
    * @return state abbreviation. e.g. "MA"
    */
-  public static String getAbbreviation(String state) {
-    return stateAbbreviations().get(state);
+  public static String getAbbreviation(Nation nation, String state) {
+    return stateAbbreviations(nation).get(state);
   }
 
   /**
    * Get the index for a state. This maybe useful for
    * exporters where you want to generate a list of unique
    * identifiers that do not collide across state-boundaries.
+   * @param nation The nation the state is in.
    * @param state State name. e.g. "Massachusetts"
    * @return state index. e.g. 1 or 50
    */
-  public static int getIndex(String state) {
+  public static int getIndex(Nation nation, String state) {
     int index = 0;
-    for (String stateName : stateAbbreviations().keySet()) {
+    for (String stateName : stateAbbreviations(nation).keySet()) {
       if (stateName.equals(state)) {
         return index;
       }
@@ -496,11 +522,12 @@ public class Location implements Serializable {
 
   /**
    * Get the state name from an abbreviation.
+   * @param nation The nation the state is in.
    * @param abbreviation State abbreviation. e.g. "MA"
    * @return state name. e.g. "Massachusetts"
    */
-  public static String getStateName(String abbreviation) {
-    LinkedHashMap<String, String> abbreviations = stateAbbreviations();
+  public static String getStateName(Nation nation, String abbreviation) {
+    LinkedHashMap<String, String> abbreviations = stateAbbreviations(nation);
     for (String name : abbreviations.keySet()) {
       if (abbreviations.get(name).equalsIgnoreCase(abbreviation)) {
         return name;
@@ -561,11 +588,12 @@ public class Location implements Serializable {
   /**
    * Get the full name of the timezone by the full name of the state.
    * Timezones are approximate.
+   * @param nation The nation the state is in.
    * @param state The full name of the state (e.g. "Massachusetts")
    * @return The full name of the timezone (e.g. "Eastern Standard Time")
    */
-  public static String getTimezoneByState(String state) {
-    String filename = Nation.Resource.TIMEZONES.path();
+  public static String getTimezoneByState(Nation nation, String state) {
+    String filename = Nation.Resource.TIMEZONES.path(nation);
     return TIMEZONES.computeIfAbsent(filename, Location::loadTimezones).get(state);
   }
 

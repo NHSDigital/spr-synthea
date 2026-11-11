@@ -40,10 +40,11 @@ public class EnglandGeographyTest {
   @BeforeClass
   public static void useEngland() throws Exception {
     EnglandTestConfig.apply();
-    assertEquals("geography/england/demographics.csv", Nation.Resource.DEMOGRAPHICS.path());
-    assertEquals("geography/england/postcodes.csv", Nation.Resource.POSTCODES.path());
-    location = new Location(REGION, null);
-    demographics = Demographics.load(REGION);
+    assertEquals("geography/england/demographics.csv",
+        Nation.Resource.DEMOGRAPHICS.path(Nation.ENGLAND));
+    assertEquals("geography/england/postcodes.csv", Nation.Resource.POSTCODES.path(Nation.ENGLAND));
+    location = new Location(Nation.ENGLAND, REGION, null);
+    demographics = Demographics.load(Nation.ENGLAND, REGION);
   }
 
   /** Restore the original geography configuration. */
@@ -55,9 +56,9 @@ public class EnglandGeographyTest {
   @Test
   public void regionLoads() {
     assertFalse(demographics.row(REGION).isEmpty());
-    assertEquals("SW", Location.getAbbreviation(REGION));
-    assertEquals(REGION, Location.getStateName("SW"));
-    assertEquals("Greenwich Mean Time", Location.getTimezoneByState(REGION));
+    assertEquals("SW", Location.getAbbreviation(Nation.ENGLAND, REGION));
+    assertEquals(REGION, Location.getStateName(Nation.ENGLAND, "SW"));
+    assertEquals("Greenwich Mean Time", Location.getTimezoneByState(Nation.ENGLAND, REGION));
   }
 
   @Test

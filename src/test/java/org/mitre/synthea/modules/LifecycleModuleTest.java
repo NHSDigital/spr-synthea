@@ -9,11 +9,13 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.NationalIdGenerator;
 import org.mitre.synthea.helpers.NhsNumberGenerator;
 import org.mitre.synthea.helpers.PhysiologyValueGenerator;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
 import org.mitre.synthea.world.concepts.VitalSign;
+import org.mitre.synthea.world.geography.Nation;
 
 public class LifecycleModuleTest {
   public static boolean deathByNaturalCauses;
@@ -26,6 +28,11 @@ public class LifecycleModuleTest {
   @AfterClass
   public static void after() {
     LifecycleModule.ENABLE_DEATH_BY_NATURAL_CAUSES = deathByNaturalCauses;
+  }
+
+  /** Birth with a new generator of the person's national identifiers. */
+  private static void birth(Person person, long time) {
+    LifecycleModule.birth(person, time, person.getNation().newNationalIdGenerator());
   }
 
   private static Person newbornWithDemographics(long seed, String gender) {
@@ -55,7 +62,7 @@ public class LifecycleModuleTest {
 
   private static void assertBirthAssignsValidNhsNumber() {
     Person person = newbornWithDemographics(12345L, "F");
-    LifecycleModule.birth(person, 0L);
+    birth(person, 0L);
     String nhsNumber = (String) person.attributes.get(Person.IDENTIFIER_NHS_NUMBER);
     Assert.assertTrue("Invalid NHS number " + nhsNumber, NhsNumberGenerator.isValid(nhsNumber));
     Assert.assertTrue(nhsNumber.startsWith("9"));
@@ -67,7 +74,7 @@ public class LifecycleModuleTest {
   public void testUpstreamNationHasNoNhsNumber() {
     inNation("US", () -> {
       Person person = newbornWithDemographics(12345L, "F");
-      LifecycleModule.birth(person, 0L);
+      birth(person, 0L);
       Assert.assertNull(person.attributes.get(Person.IDENTIFIER_NHS_NUMBER));
       Assert.assertNotNull(person.attributes.get(Person.IDENTIFIER_SSN));
       assertEquals("US", person.attributes.get(Person.COUNTRY));
@@ -79,7 +86,7 @@ public class LifecycleModuleTest {
   public void testBirthAssignsSimulationCountryAndNation() {
     inNation("GB-ENG", () -> {
       Person person = newbornWithDemographics(12345L, "F");
-      LifecycleModule.birth(person, 0L);
+      birth(person, 0L);
       assertEquals("GB", person.attributes.get(Person.COUNTRY));
       assertEquals("GB-ENG", person.attributes.get(Person.NATION));
     });
@@ -89,8 +96,41 @@ public class LifecycleModuleTest {
   public void testBirthKeepsSuppliedNhsNumber() {
     Person person = newbornWithDemographics(12345L, "M");
     person.attributes.put(Person.IDENTIFIER_NHS_NUMBER, "9434765919");
-    LifecycleModule.birth(person, 0L);
+    birth(person, 0L);
     assertEquals("9434765919", person.attributes.get(Person.IDENTIFIER_NHS_NUMBER));
+  }
+
+  @Test
+  public void testRunGeneratorIssuesUniqueNhsNumbers() {
+    inNation("GB-ENG", () -> {
+      NationalIdGenerator nationalIds = Nation.ENGLAND.newNationalIdGenerator();
+      Person a = newbornWithDemographics(12345L, "F");
+      LifecycleModule.birth(a, 0L, nationalIds);
+      // same seed, so the same random NHS number would be drawn: the run's generator skips it
+      Person b = newbornWithDemographics(12345L, "F");
+      LifecycleModule.birth(b, 0L, nationalIds);
+      Assert.assertNotEquals(a.attributes.get(Person.IDENTIFIER_NHS_NUMBER),
+          b.attributes.get(Person.IDENTIFIER_NHS_NUMBER));
+      Assert.assertTrue(NhsNumberGenerator.isValid(
+          (String) b.attributes.get(Person.IDENTIFIER_NHS_NUMBER)));
+    });
+  }
+
+  @Test
+  public void testSuppliedNhsNumberIsReservedForTheRun() {
+    inNation("GB-ENG", () -> {
+      Person first = newbornWithDemographics(12345L, "F");
+      birth(first, 0L);
+      String issued = (String) first.attributes.get(Person.IDENTIFIER_NHS_NUMBER);
+
+      NationalIdGenerator nationalIds = Nation.ENGLAND.newNationalIdGenerator();
+      Person supplied = newbornWithDemographics(1L, "M");
+      supplied.attributes.put(Person.IDENTIFIER_NHS_NUMBER, issued);
+      LifecycleModule.birth(supplied, 0L, nationalIds);
+      Person later = newbornWithDemographics(12345L, "F");
+      LifecycleModule.birth(later, 0L, nationalIds);
+      Assert.assertNotEquals(issued, later.attributes.get(Person.IDENTIFIER_NHS_NUMBER));
+    });
   }
 
   @Test
@@ -101,9 +141,9 @@ public class LifecycleModuleTest {
   private static void assertNhsNumberDoesNotPerturbRandomStream() {
     Person a = newbornWithDemographics(777L, "F");
     a.attributes.put(Person.IDENTIFIER_NHS_NUMBER, "9434765919");
-    LifecycleModule.birth(a, 0L);
+    birth(a, 0L);
     Person b = newbornWithDemographics(777L, "F");
-    LifecycleModule.birth(b, 0L);
+    birth(b, 0L);
     assertEquals(a.getCount(), b.getCount());
     assertEquals(a.attributes.get(Person.NAME), b.attributes.get(Person.NAME));
   }
@@ -179,7 +219,7 @@ public class LifecycleModuleTest {
     person.attributes.put(Person.RACE, "white");
     person.attributes.put(Person.ETHNICITY, "english");
 
-    LifecycleModule.birth(person, 0);
+    birth(person, 0);
 
     // Person should have some PhysiologyValueGenerators
     Assert.assertEquals(person.vitalSigns.get(VitalSign.SYSTOLIC_BLOOD_PRESSURE).getClass(),
@@ -206,7 +246,7 @@ public class LifecycleModuleTest {
       person.attributes.put(Person.RACE, "white");
       person.attributes.put(Person.ETHNICITY, "english");
       long birth = 0L;
-      LifecycleModule.birth(person, birth);
+      birth(person, birth);
 
       long candidateTime = birth + Utilities.convertTime("years", 20);
       while (person.ageInYears(candidateTime) < 20) {

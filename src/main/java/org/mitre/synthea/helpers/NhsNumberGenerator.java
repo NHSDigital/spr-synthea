@@ -6,6 +6,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
+import org.mitre.synthea.world.agents.Person;
+
 /**
  * Generates unique, checksum-valid NHS numbers.
  *
@@ -24,16 +26,17 @@ import java.util.function.Supplier;
  *   error.</li>
  * </ul>
  *
- * <p>Every number handed out by an instance is unique for the lifetime of that instance.</p>
+ * <p>Every number handed out (or {@link #reserve reserved}) by an instance is unique for the
+ * lifetime of that instance, so a simulation run uses one instance for everyone.</p>
  */
-public class NhsNumberGenerator {
+public class NhsNumberGenerator implements NationalIdGenerator {
   public static final String NHS_NUMBER_SYSTEM = "https://fhir.nhs.uk/Id/nhs-number";
   private static final long MAX_ROOT = 999_999_999L;
   private static final String RANGE_START_KEY = "generate.patient.nhs_number.range.start";
   private static final String RANGE_END_KEY = "generate.patient.nhs_number.range.end";
   private static final long UNSET = -1L;
-
-  private static volatile NhsNumberGenerator instance;
+  /** Mixed into a person's seed for their NHS number's own random stream. */
+  private static final long NHS_NUMBER_SEED_SALT = 0x4E48534E554D4245L;
 
   private final Set<String> generatedNhsNumbers =
       Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
@@ -69,30 +72,31 @@ public class NhsNumberGenerator {
     }
   }
 
-  /**
-   * Get the shared generator used for all people in this JVM.
-   * @return the shared generator.
-   */
-  public static NhsNumberGenerator getInstance() {
-    NhsNumberGenerator result = instance;
-    if (result == null) {
-      synchronized (NhsNumberGenerator.class) {
-        result = instance;
-        if (result == null) {
-          result = new NhsNumberGenerator();
-          instance = result;
-        }
-      }
-    }
-    return result;
+  @Override
+  public String attribute() {
+    return Person.IDENTIFIER_NHS_NUMBER;
+  }
+
+  @Override
+  public String system() {
+    return NHS_NUMBER_SYSTEM;
   }
 
   /**
-   * Discard the shared generator so that the next call to {@link #getInstance()} re-reads the
-   * Config and starts with an empty set of allocated numbers.
+   * Issue a new NHS number for a person. The random digits come from a stream seeded from the
+   * person's seed, so that issuing the number does not change the rest of their record.
+   * @param person the person.
+   * @return a ten digit NHS number.
    */
-  public static synchronized void reset() {
-    instance = null;
+  @Override
+  public String generate(Person person) {
+    return randomNhsNumber(
+        new DefaultRandomNumberGenerator(person.getSeed() ^ NHS_NUMBER_SEED_SALT));
+  }
+
+  @Override
+  public void reserve(String nhsNumber) {
+    generatedNhsNumbers.add(nhsNumber);
   }
 
   private static int[] getDigits(long root) {

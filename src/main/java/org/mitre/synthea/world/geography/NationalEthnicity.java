@@ -65,11 +65,12 @@ public class NationalEthnicity implements Serializable {
   }
 
   /**
-   * The ethnicity model of the configured nation.
+   * The ethnicity model of a nation.
+   * @param nation the nation.
    * @return the model, or null if the nation uses upstream race/ethnicity.
    */
-  public static NationalEthnicity current() {
-    String path = Nation.Resource.ETHNICITY.path();
+  public static NationalEthnicity of(Nation nation) {
+    String path = Nation.Resource.ETHNICITY.path(nation);
     return path == null ? null : load(path);
   }
 

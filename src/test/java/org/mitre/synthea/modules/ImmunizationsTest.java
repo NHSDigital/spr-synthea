@@ -16,6 +16,7 @@ import org.junit.Test;
 import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.geography.Nation;
 
 public class ImmunizationsTest {
   private static final String UK_SCHEDULE = "geography/england/immunization_schedule.json";
@@ -29,13 +30,13 @@ public class ImmunizationsTest {
   @Test
   public void testMaximumDoses() {
     // "52" is the Hep A Adult vaccine. It requires two doses.
-    int doses = Immunizations.getMaximumDoses("52");
+    int doses = Immunizations.getMaximumDoses(Nation.USA, "52");
     assertEquals(2, doses);
   }
 
   @Test
   public void testMaximumDosesNothing() {
-    int doses = Immunizations.getMaximumDoses(null);
+    int doses = Immunizations.getMaximumDoses(Nation.USA, null);
     assertEquals(1, doses);
   }
 
@@ -43,7 +44,7 @@ public class ImmunizationsTest {
   @SuppressWarnings("rawtypes")
   public void testUkScheduleIsWellFormed() {
     Config.set(Immunizations.SCHEDULE_CONFIG, UK_SCHEDULE);
-    Map<String, Map> schedule = Immunizations.getSchedule();
+    Map<String, Map> schedule = Immunizations.getSchedule(Nation.USA);
     assertTrue(schedule.containsKey("dtap_ipv_hib_hepb"));
     assertFalse("US-only vaccines should not be in the UK schedule",
         schedule.containsKey("var") || schedule.containsKey("hepa"));
@@ -54,15 +55,15 @@ public class ImmunizationsTest {
       assertFalse(entry.getKey(), ((List) entry.getValue().get("at_months")).isEmpty());
     }
     // the 6-in-1 primary course is three doses
-    assertEquals(3, Immunizations.getMaximumDoses("146"));
+    assertEquals(3, Immunizations.getMaximumDoses(Nation.USA, "146"));
   }
 
   @Test
   public void testScheduleSwitchesWithConfig() {
-    assertEquals(2, Immunizations.getMaximumDoses("52"));
+    assertEquals(2, Immunizations.getMaximumDoses(Nation.USA, "52"));
     Config.set(Immunizations.SCHEDULE_CONFIG, UK_SCHEDULE);
     // Hep A is not part of the UK routine schedule
-    assertEquals(1, Immunizations.getMaximumDoses("52"));
+    assertEquals(1, Immunizations.getMaximumDoses(Nation.USA, "52"));
   }
 
   /**
@@ -78,7 +79,7 @@ public class ImmunizationsTest {
     for (int m = 0; m <= months; m++) {
       long time = birth.plusMonths(m).plusDays(3)
           .atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli();
-      for (String imm : Immunizations.getSchedule().keySet()) {
+      for (String imm : Immunizations.getSchedule(Nation.USA).keySet()) {
         if (Immunizations.immunizationDue(imm, person, time, given) > 0) {
           given.get(imm).add(time);
           ages.computeIfAbsent(imm, k -> new ArrayList<>()).add(person.ageInMonths(time));

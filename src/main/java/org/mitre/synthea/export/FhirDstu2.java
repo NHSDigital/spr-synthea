@@ -119,7 +119,6 @@ import org.mitre.synthea.world.concepts.HealthRecord.Medication;
 import org.mitre.synthea.world.concepts.HealthRecord.Observation;
 import org.mitre.synthea.world.concepts.HealthRecord.Procedure;
 import org.mitre.synthea.world.concepts.HealthRecord.Report;
-import org.mitre.synthea.world.geography.Nation;
 
 public class FhirDstu2 {
   // HAPI FHIR warns that the context creation is expensive, and should be performed
@@ -143,7 +142,6 @@ public class FhirDstu2 {
   protected static boolean TRANSACTION_BUNDLE =
       Config.getAsBoolean("exporter.fhir.transaction_bundle");
 
-  private static final String COUNTRY_CODE = Nation.isoCountryCode();
 
   @SuppressWarnings("rawtypes")
   private static Map loadRaceEthnicityCodes() {
@@ -433,9 +431,7 @@ public class FhirDstu2 {
         .setCity((String) person.attributes.get(Person.CITY))
         .setPostalCode((String) person.attributes.get(Person.ZIP))
         .setState(state);
-    if (COUNTRY_CODE != null) {
-      addrResource.setCountry(COUNTRY_CODE);
-    }
+    addrResource.setCountry(person.getNation().isoCountryCode());
 
     Point2D.Double coord = person.getLonLat();
     if (coord != null) {
@@ -1621,9 +1617,7 @@ public class FhirDstu2 {
         .setCity(provider.city)
         .setPostalCode(provider.zip)
         .setState(provider.state);
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
-    }
+    address.setCountry(provider.getNation().isoCountryCode());
     organizationResource.addAddress(address);
 
     if (provider.phone != null && !provider.phone.isEmpty()) {
@@ -1659,9 +1653,7 @@ public class FhirDstu2 {
         .setCity((String) clinician.attributes.get(Clinician.CITY))
         .setPostalCode((String) clinician.attributes.get(Clinician.ZIP))
         .setState((String) clinician.attributes.get(Clinician.STATE));
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
-    }
+    address.setCountry(clinician.getNation().isoCountryCode());
     practitionerResource.addAddress(address);
 
     if (clinician.attributes.get(Person.GENDER).equals("M")) {

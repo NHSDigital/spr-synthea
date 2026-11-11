@@ -39,6 +39,8 @@ import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
 import org.mitre.synthea.world.concepts.VitalSign;
 import org.mitre.synthea.world.concepts.healthinsurance.CoverageRecord;
 import org.mitre.synthea.world.concepts.healthinsurance.InsurancePlan;
+import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
 import org.mitre.synthea.world.geography.quadtree.QuadTreeElement;
 
 /**
@@ -424,6 +426,17 @@ public class Person implements Serializable, RandomNumberGenerator, QuadTreeElem
       years = 0;
     }
     return years;
+  }
+
+  /**
+   * The nation this person lives in, from their {@link #LOCATION}. This is how code that only
+   * has the person (including static module and exporter helpers) reaches the nation.
+   * The Generator sets the location before birth; a person created without one (as in some unit
+   * tests) gets the configured nation.
+   * @return the person's nation.
+   */
+  public Nation getNation() {
+    return Nation.of((Location) attributes.get(LOCATION));
   }
 
   /**
