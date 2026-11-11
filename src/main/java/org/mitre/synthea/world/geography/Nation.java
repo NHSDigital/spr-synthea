@@ -93,10 +93,7 @@ public enum Nation {
    * @throws IllegalStateException for "GB"/"UK" (ambiguous) and UK nations not implemented yet.
    */
   public static Nation fromCountryCode(String countryCode) {
-    String normalised = countryCode == null ? "" : countryCode.trim().toUpperCase(Locale.ROOT);
-    if (normalised.equals("GB-CYM")) {
-      normalised = WALES.code;
-    }
+    String normalised = canonicalCode(countryCode);
     if (normalised.equals("GB") || normalised.equals("UK")) {
       throw new IllegalStateException(COUNTRY_CODE_KEY + " = " + countryCode
           + " is ambiguous: data differs between the UK nations. Use GB-ENG for England.");
@@ -114,9 +111,19 @@ public enum Nation {
     return UPSTREAM;
   }
 
-  /** The configured country code, e.g. "GB-ENG" or "US". */
+  /**
+   * The configured country code in canonical form, e.g. "GB-ENG" or "US". Modules compare it
+   * exactly (for example hypertension.json routes on nation == "GB-ENG"), so " gb-eng " gives
+   * "GB-ENG".
+   */
   public static String configuredCode() {
-    return Config.get(COUNTRY_CODE_KEY, DEFAULT_COUNTRY_CODE);
+    return canonicalCode(Config.get(COUNTRY_CODE_KEY, DEFAULT_COUNTRY_CODE));
+  }
+
+  /** Trim and upper-case a country code, and map the alias GB-CYM to GB-WLS. */
+  private static String canonicalCode(String countryCode) {
+    String code = countryCode == null ? "" : countryCode.trim().toUpperCase(Locale.ROOT);
+    return code.equals("GB-CYM") ? WALES.code : code;
   }
 
   /**
