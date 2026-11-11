@@ -1,5 +1,7 @@
 package org.mitre.synthea.world.geography;
 
+import static org.mitre.synthea.world.geography.Nation.Resource.DEMOGRAPHICS;
+
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 
@@ -431,16 +433,18 @@ public class Demographics implements Comparable<Demographics>, Serializable {
   /**
    * Get a Table of (State, CityId, Demographics), with the given restrictions on state and city.
    *
+   * @param nation
+   *          The nation whose demographics and ethnicity model to load.
    * @param state
    *          The state that is desired. Other states will be excluded from the results.
    * @return Table of (State, CityId, Demographics)
    * @throws IOException
    *           if any exception occurs in reading the demographics file
    */
-  public static Table<String, String, Demographics> load(String state)
+  public static Table<String, String, Demographics> load(Nation nation, String state)
       throws IOException {
-    String filename = Nation.Resource.DEMOGRAPHICS.path();
-    NationalEthnicity ethnicity = NationalEthnicity.current();
+    String filename = nation.getResource(DEMOGRAPHICS);
+    NationalEthnicity ethnicity = NationalEthnicity.of(nation);
     String csv = Utilities.readResource(filename, true, true);
 
     List<? extends Map<String,String>> demographicsCsv = SimpleCSV.parse(csv);
@@ -453,7 +457,7 @@ public class Demographics implements Comparable<Demographics>, Serializable {
 
       // for now, only allow one state at a time
       if (state != null && state.equalsIgnoreCase(currState)) {
-        Demographics parsed = csvLineToDemographics(demographicsLine, ethnicity);
+        Demographics parsed = csvLineToDemographics(demographicsLine, nation, ethnicity);
 
         table.put(currState, currCityId, parsed);
       }
@@ -487,10 +491,11 @@ public class Demographics implements Comparable<Demographics>, Serializable {
    * Map a single line of the demographics CSV file into a Demographics object.
    *
    * @param line a line representing one city, parsed via SimpleCSV
+   * @param nation the nation the city is in
    * @param ethnicity the nation's ethnicity model, or null for upstream US Census columns
    * @return the Demographics object for that city
    */
-  private static Demographics csvLineToDemographics(Map<String,String> line,
+  private static Demographics csvLineToDemographics(Map<String,String> line, Nation nation,
       NationalEthnicity ethnicity) {
     Demographics d = new Demographics();
 
@@ -527,7 +532,7 @@ public class Demographics implements Comparable<Demographics>, Serializable {
       String value = line.get(race);
       if (value == null) {
         throw new IllegalArgumentException("Demographics for " + d.city + " have no " + race
-            + " column, which " + Nation.configuredCode() + " requires (see "
+            + " column, which " + nation.code() + " requires (see "
             + Nation.COUNTRY_CODE_KEY + ")");
       }
       double percentage = Double.parseDouble(value);

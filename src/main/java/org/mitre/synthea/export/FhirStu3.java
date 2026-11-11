@@ -128,7 +128,6 @@ import org.mitre.synthea.world.concepts.HealthRecord.Medication;
 import org.mitre.synthea.world.concepts.HealthRecord.Observation;
 import org.mitre.synthea.world.concepts.HealthRecord.Procedure;
 import org.mitre.synthea.world.concepts.HealthRecord.Report;
-import org.mitre.synthea.world.geography.Nation;
 
 public class FhirStu3 {
   // HAPI FHIR warns that the context creation is expensive, and should be performed
@@ -152,8 +151,6 @@ public class FhirStu3 {
   protected static boolean TRANSACTION_BUNDLE =
       Config.getAsBoolean("exporter.fhir.transaction_bundle");
 
-  private static final String COUNTRY_CODE = Nation.isoCountryCode();
-  private static final String PASSPORT_URI = Nation.passportUri();
 
   @SuppressWarnings("rawtypes")
   private static Map loadRaceEthnicityCodes() {
@@ -324,7 +321,7 @@ public class FhirStu3 {
       Code passportCode = new Code("http://hl7.org/fhir/v2/0203", "PPN", "Passport Number");
       patientResource.addIdentifier()
           .setType(mapCodeToCodeableConcept(passportCode, "http://hl7.org/fhir/v2/0203"))
-          .setSystem(PASSPORT_URI)
+          .setSystem(person.getNation().passportUri())
           .setValue((String) person.attributes.get(Person.IDENTIFIER_PASSPORT));
     }
 
@@ -489,9 +486,7 @@ public class FhirStu3 {
         .setCity((String) person.attributes.get(Person.CITY))
         .setPostalCode((String) person.attributes.get(Person.ZIP))
         .setState(state);
-    if (COUNTRY_CODE != null) {
-      addrResource.setCountry(COUNTRY_CODE);
-    }
+    addrResource.setCountry(person.getNation().isoCountryCode());
 
     Address birthplace = new Address();
     birthplace.setCity((String) person.attributes.get(Person.BIRTH_CITY))
@@ -2263,9 +2258,7 @@ public class FhirStu3 {
         .setCity(provider.city)
         .setPostalCode(provider.zip)
         .setState(provider.state);
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
-    }
+    address.setCountry(provider.getNation().isoCountryCode());
     organizationResource.addAddress(address);
 
     Point2D.Double coord = provider.getLonLat();
@@ -2309,9 +2302,7 @@ public class FhirStu3 {
         .setCity((String) clinician.attributes.get(Clinician.CITY))
         .setPostalCode((String) clinician.attributes.get(Clinician.ZIP))
         .setState((String) clinician.attributes.get(Clinician.STATE));
-    if (COUNTRY_CODE != null) {
-      address.setCountry(COUNTRY_CODE);
-    }
+    address.setCountry(clinician.getNation().isoCountryCode());
     practitionerResource.addAddress(address);
 
     if (clinician.attributes.get(Person.GENDER).equals("M")) {

@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.mitre.synthea.helpers.RandomNumberGenerator;
+import org.mitre.synthea.world.geography.Nation;
 import org.mitre.synthea.world.geography.quadtree.QuadTreeElement;
 
 /**
@@ -126,6 +127,14 @@ public class Clinician implements Serializable, QuadTreeElement {
    */
   public Provider getOrganization() {
     return organization;
+  }
+
+  /**
+   * The nation this clinician works in.
+   * @return the organization's nation (the configured nation if there is no organization).
+   */
+  public final Nation getNation() {
+    return organization == null ? Nation.configured() : organization.getNation();
   }
 
   /**

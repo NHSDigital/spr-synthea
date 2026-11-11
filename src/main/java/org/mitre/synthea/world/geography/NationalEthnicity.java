@@ -1,5 +1,7 @@
 package org.mitre.synthea.world.geography;
 
+import static org.mitre.synthea.world.geography.Nation.Resource.ETHNICITY;
+
 import com.google.gson.reflect.TypeToken;
 
 import java.io.Serializable;
@@ -65,11 +67,12 @@ public class NationalEthnicity implements Serializable {
   }
 
   /**
-   * The ethnicity model of the configured nation.
+   * The ethnicity model of a nation.
+   * @param nation the nation.
    * @return the model, or null if the nation uses upstream race/ethnicity.
    */
-  public static NationalEthnicity current() {
-    String path = Nation.Resource.ETHNICITY.path();
+  public static NationalEthnicity of(Nation nation) {
+    String path = nation.getResource(ETHNICITY);
     return path == null ? null : load(path);
   }
 

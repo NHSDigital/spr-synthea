@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mitre.synthea.world.geography.Nation.Resource.DEMOGRAPHICS;
+import static org.mitre.synthea.world.geography.Nation.Resource.POSTCODES;
 
 import com.google.common.collect.Table;
 
@@ -40,10 +42,11 @@ public class EnglandGeographyTest {
   @BeforeClass
   public static void useEngland() throws Exception {
     EnglandTestConfig.apply();
-    assertEquals("geography/england/demographics.csv", Nation.Resource.DEMOGRAPHICS.path());
-    assertEquals("geography/england/postcodes.csv", Nation.Resource.POSTCODES.path());
-    location = new Location(REGION, null);
-    demographics = Demographics.load(REGION);
+    assertEquals("geography/england/demographics.csv",
+        Nation.ENGLAND.getResource(DEMOGRAPHICS));
+    assertEquals("geography/england/postcodes.csv", Nation.ENGLAND.getResource(POSTCODES));
+    location = new Location(Nation.ENGLAND, REGION, null);
+    demographics = Demographics.load(Nation.ENGLAND, REGION);
   }
 
   /** Restore the original geography configuration. */
@@ -55,9 +58,9 @@ public class EnglandGeographyTest {
   @Test
   public void regionLoads() {
     assertFalse(demographics.row(REGION).isEmpty());
-    assertEquals("SW", Location.getAbbreviation(REGION));
-    assertEquals(REGION, Location.getStateName("SW"));
-    assertEquals("Greenwich Mean Time", Location.getTimezoneByState(REGION));
+    assertEquals("SW", Location.getAbbreviation(Nation.ENGLAND, REGION));
+    assertEquals(REGION, Location.getStateName(Nation.ENGLAND, "SW"));
+    assertEquals("Greenwich Mean Time", Location.getTimezoneByState(Nation.ENGLAND, REGION));
   }
 
   @Test

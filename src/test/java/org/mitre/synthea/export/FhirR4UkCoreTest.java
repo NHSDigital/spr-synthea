@@ -46,6 +46,7 @@ import org.mitre.synthea.world.concepts.HealthRecord;
 import org.mitre.synthea.world.concepts.HealthRecord.Code;
 import org.mitre.synthea.world.concepts.HealthRecord.EncounterType;
 import org.mitre.synthea.world.geography.EnglandTestConfig;
+import org.mitre.synthea.world.geography.Nation;
 import org.mitre.synthea.world.geography.NationalEthnicity;
 
 /**
@@ -129,7 +130,7 @@ public class FhirR4UkCoreTest {
       Extension ethnic = patient.getExtensionByUrl(FhirR4.UK_CORE_ETHNIC_CATEGORY);
       assertNotNull(ethnic);
       Coding coding = ((CodeableConcept) ethnic.getValue()).getCodingFirstRep();
-      assertEquals(NationalEthnicity.current().getCategorySystem(), coding.getSystem());
+      assertEquals(NationalEthnicity.of(Nation.ENGLAND).getCategorySystem(), coding.getSystem());
       assertTrue(coding.getCode(), coding.getCode().matches("[A-HJ-NPRS]"));
       assertNotNull(coding.getDisplay());
       assertTrue("no US Core race extension", patient.getExtension().stream()

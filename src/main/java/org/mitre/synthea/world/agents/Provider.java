@@ -1,5 +1,15 @@
 package org.mitre.synthea.world.agents;
 
+import static org.mitre.synthea.world.geography.Nation.Resource.HOME_HEALTH;
+import static org.mitre.synthea.world.geography.Nation.Resource.HOSPICE;
+import static org.mitre.synthea.world.geography.Nation.Resource.HOSPITALS;
+import static org.mitre.synthea.world.geography.Nation.Resource.IHS_HOSPITALS;
+import static org.mitre.synthea.world.geography.Nation.Resource.IHS_PRIMARY_CARE;
+import static org.mitre.synthea.world.geography.Nation.Resource.NURSING;
+import static org.mitre.synthea.world.geography.Nation.Resource.PRIMARY_CARE;
+import static org.mitre.synthea.world.geography.Nation.Resource.URGENT_CARE;
+import static org.mitre.synthea.world.geography.Nation.Resource.VETERANS;
+
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import com.google.gson.internal.LinkedTreeMap;
@@ -419,6 +429,14 @@ public class Provider implements QuadTreeElement, Serializable {
   }
 
   /**
+   * The nation this provider is in.
+   * @return the nation of the provider's location (the configured nation if it has none).
+   */
+  public final Nation getNation() {
+    return Nation.of(location);
+  }
+
+  /**
    * Find a provider that does not already have a health record for the given person.
    * @param person The patient who requires the service.
    * @param service The service required. For example, EncounterType.AMBULATORY.
@@ -497,45 +515,46 @@ public class Provider implements QuadTreeElement, Serializable {
    * @param random Source of randomness for provider generation.
    */
   public static void loadProviders(Location location, DefaultRandomNumberGenerator random) {
+    Nation nation = location.getNation();
     if (!statesLoaded.contains(location.state)
-        || !statesLoaded.contains(Location.getAbbreviation(location.state))
-        || !statesLoaded.contains(Location.getStateName(location.state))) {
+        || !statesLoaded.contains(Location.getAbbreviation(nation, location.state))
+        || !statesLoaded.contains(Location.getStateName(nation, location.state))) {
       try {
         Set<EncounterType> servicesProvided = new HashSet<EncounterType>();
         servicesProvided.add(EncounterType.AMBULATORY);
         servicesProvided.add(EncounterType.OUTPATIENT);
         servicesProvided.add(EncounterType.INPATIENT);
 
-        String hospitalFile = Nation.Resource.HOSPITALS.path();
+        String hospitalFile = nation.getResource(HOSPITALS);
         loadProviders(location, hospitalFile, ProviderType.HOSPITAL, servicesProvided,
             random, false);
 
-        String ihsHospitalFile = Nation.Resource.IHS_HOSPITALS.path();
+        String ihsHospitalFile = nation.getResource(IHS_HOSPITALS);
         loadProviders(location, ihsHospitalFile, ProviderType.IHS, servicesProvided,
             random, true);
 
         servicesProvided.add(EncounterType.WELLNESS);
-        String vaFile = Nation.Resource.VETERANS.path();
+        String vaFile = nation.getResource(VETERANS);
         loadProviders(location, vaFile, ProviderType.VETERAN, servicesProvided, random,
                 true);
 
         servicesProvided.clear();
         servicesProvided.add(EncounterType.WELLNESS);
-        String primaryCareFile = Nation.Resource.PRIMARY_CARE.path();
+        String primaryCareFile = nation.getResource(PRIMARY_CARE);
         loadProviders(location, primaryCareFile, ProviderType.PRIMARY, servicesProvided,
             random, false);
-        String ihsPCFile = Nation.Resource.IHS_PRIMARY_CARE.path();
+        String ihsPCFile = nation.getResource(IHS_PRIMARY_CARE);
         loadProviders(location, ihsPCFile, ProviderType.IHS, servicesProvided, random, true);
 
         servicesProvided.clear();
         servicesProvided.add(EncounterType.URGENTCARE);
-        String urgentcareFile = Nation.Resource.URGENT_CARE.path();
+        String urgentcareFile = nation.getResource(URGENT_CARE);
         loadProviders(location, urgentcareFile, ProviderType.URGENT, servicesProvided,
             random, false);
 
         statesLoaded.add(location.state);
-        statesLoaded.add(Location.getAbbreviation(location.state));
-        statesLoaded.add(Location.getStateName(location.state));
+        statesLoaded.add(Location.getAbbreviation(nation, location.state));
+        statesLoaded.add(Location.getStateName(nation, location.state));
       } catch (IOException e) {
         System.err.println("ERROR: unable to load providers for state: " + location.state);
         e.printStackTrace();
@@ -546,19 +565,19 @@ public class Provider implements QuadTreeElement, Serializable {
         Set<EncounterType> servicesProvided = new HashSet<EncounterType>();
         servicesProvided.clear();
         servicesProvided.add(EncounterType.HOME);
-        String homeHealthFile = Nation.Resource.HOME_HEALTH.path();
+        String homeHealthFile = nation.getResource(HOME_HEALTH);
         loadProviders(location, homeHealthFile, ProviderType.HOME_HEALTH, servicesProvided,
             random, true);
 
         servicesProvided.clear();
         servicesProvided.add(EncounterType.HOSPICE);
-        String hospiceFile = Nation.Resource.HOSPICE.path();
+        String hospiceFile = nation.getResource(HOSPICE);
         loadProviders(location, hospiceFile, ProviderType.HOSPICE, servicesProvided,
             random, true);
 
         servicesProvided.clear();
         servicesProvided.add(EncounterType.SNF);
-        String nursingFile = Nation.Resource.NURSING.path();
+        String nursingFile = nation.getResource(NURSING);
         loadProviders(location, nursingFile, ProviderType.NURSING, servicesProvided,
             random, true);
       } catch (IOException e) {
@@ -593,7 +612,7 @@ public class Provider implements QuadTreeElement, Serializable {
     while (csv.hasNext()) {
       Map<String,String> row = csv.next();
       String currState = row.get("state");
-      String abbreviation = Location.getAbbreviation(location.state);
+      String abbreviation = Location.getAbbreviation(location.getNation(), location.state);
 
       // for now, only allow one state at a time
       if ((location.state == null)
@@ -695,6 +714,8 @@ public class Provider implements QuadTreeElement, Serializable {
     Clinician clinician = null;
     try {
       Person doc = new Person(clinicianIdentifier);
+      // so that names etc. come from this provider's nation
+      doc.attributes.put(Person.LOCATION, location);
       Demographics cityDemographics = location.randomCity(doc);
       Map<String, Object> out = new HashMap<>();
 

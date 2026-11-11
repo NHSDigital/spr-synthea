@@ -41,14 +41,14 @@ public class LocationTest {
 
   @Test
   public void testAbbreviations() {
-    Assert.assertNotNull(Location.getAbbreviation(testState));
-    Assert.assertFalse(Location.getAbbreviation(testState).equals(testState));
+    Assert.assertNotNull(Location.getAbbreviation(Nation.USA, testState));
+    Assert.assertFalse(Location.getAbbreviation(Nation.USA, testState).equals(testState));
   }
 
   @Test
   public void testAbbreviationsReverse() {
-    String abbreviation = Location.getAbbreviation(testState);
-    Assert.assertTrue(Location.getStateName(abbreviation).equals(testState));
+    String abbreviation = Location.getAbbreviation(Nation.USA, testState);
+    Assert.assertTrue(Location.getStateName(Nation.USA, abbreviation).equals(testState));
   }
 
   @Test
@@ -108,7 +108,7 @@ public class LocationTest {
 
   @Test
   public void testTimezone() {
-    String tz = Location.getTimezoneByState(testState);
+    String tz = Location.getTimezoneByState(Nation.USA, testState);
     Assert.assertNotNull(tz);
   }
 

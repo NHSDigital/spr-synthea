@@ -41,7 +41,8 @@ public class TransitionMetricsTest {
     person.setProvider(EncounterType.WELLNESS, mockProvider);
     person.setProvider(EncounterType.AMBULATORY, mockProvider);
     long time = System.currentTimeMillis();
-    LifecycleModule.birth(person, time);
+    LifecycleModule.birth(person, time,
+        person.getNation().newNationalIdGenerator());
     PayerManager.loadNoInsurance();
     person.coverage.setPlanToNoInsurance(time);
 

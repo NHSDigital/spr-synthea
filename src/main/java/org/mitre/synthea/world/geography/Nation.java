@@ -3,6 +3,9 @@ package org.mitre.synthea.world.geography;
 import java.util.Locale;
 
 import org.mitre.synthea.helpers.Config;
+import org.mitre.synthea.helpers.NationalIdGenerator;
+import org.mitre.synthea.helpers.NhsNumberGenerator;
+import org.mitre.synthea.helpers.SocialSecurityNumberGenerator;
 
 /**
  * The nation the simulation is set in, selected by {@code generate.geography.country_code}.
@@ -14,7 +17,12 @@ import org.mitre.synthea.helpers.Config;
  * Each implemented UK nation keeps its data in {@code geography/<folder>/}, so a nation is added
  * by dropping in that folder; see {@link Resource}.</p>
  *
- * <p>Any other code (e.g. US) keeps upstream Synthea's behaviour and file locations.</p>
+ * <p>US, and any other non-UK code, uses Synthea's default US behaviour and file locations.</p>
+ *
+ * <p>There is no global "current nation": the Generator resolves the configured nation once per
+ * run and stores it in its {@link Location}. People, providers and clinicians reach it through
+ * their location ({@code Person.getNation()}, {@code Provider.getNation()},
+ * {@code Clinician.getNation()}), so static helpers that take a person need no other state.</p>
  */
 public enum Nation {
   ENGLAND("GB-ENG", "england", "South West", null),
@@ -24,51 +32,21 @@ public enum Nation {
       "needs Scottish demographics, providers and CHI numbers instead of NHS numbers"),
   NORTHERN_IRELAND("GB-NIR", null, null,
       "needs Northern Ireland demographics, providers and Health and Care (H&C) numbers"),
-  /** Upstream Synthea behaviour: US data, or files configured explicitly for another country. */
-  UPSTREAM(null, null, "Massachusetts", null);
+  /** The United States: Synthea's default US data, or files configured for another country. */
+  USA(null, null, "Massachusetts", null);
 
   public static final String COUNTRY_CODE_KEY = "generate.geography.country_code";
   public static final String DEFAULT_COUNTRY_CODE = "GB-ENG";
-
-  /**
-   * The nation and resource paths for one configuration version; see {@link #resolved()}.
-   */
-  private static final class Resolved {
-    final long configVersion;
-    final Nation nation;
-    final String[] paths = new String[Resource.values().length];
-
-    Resolved(long configVersion) {
-      this.configVersion = configVersion;
-      this.nation = fromCountryCode(configuredCode());
-      for (Resource resource : Resource.values()) {
-        paths[resource.ordinal()] = resource.path(nation);
-      }
-    }
-  }
-
-  private static volatile Resolved resolved;
-
-  /**
-   * The nation and resource paths for the current configuration. They are called for every
-   * person, so they are cached and recomputed only when the configuration changes (for example
-   * when a test switches nation with Config.set).
-   */
-  private static Resolved resolved() {
-    long version = Config.version();
-    Resolved current = resolved;
-    if (current == null || current.configVersion != version) {
-      // read the version first: a change while resolving makes the next call resolve again
-      current = new Resolved(version);
-      resolved = current;
-    }
-    return current;
-  }
 
   private final String code;
   private final String folder;
   private final String defaultState;
   private final String notImplementedReason;
+  /**
+   * This nation's resource paths, cached until the configuration changes; see
+   * {@link #getResource(Resource)}.
+   */
+  private volatile ResolvedPaths resolvedPaths;
 
   Nation(String code, String folder, String defaultState, String notImplementedReason) {
     this.code = code;
@@ -78,25 +56,34 @@ public enum Nation {
   }
 
   /**
-   * The nation for the configured {@code generate.geography.country_code}.
+   * The nation named by {@code generate.geography.country_code}. The Generator resolves this
+   * once per run and stores it in its {@link Location}; everything else should take the nation
+   * from a Location (or a Person's, see {@link #of(Location)}).
    * @return the configured nation.
    * @throws IllegalStateException if the code names a nation that is not implemented yet.
    */
-  public static Nation current() {
-    return resolved().nation;
+  public static Nation configured() {
+    return fromCountryCode(Config.get(COUNTRY_CODE_KEY, DEFAULT_COUNTRY_CODE));
+  }
+
+  /**
+   * The nation of a location.
+   * @param location the location, or null for a person or provider created without one (as in
+   *     some unit tests).
+   * @return the location's nation, or the {@link #configured()} nation if there is no location.
+   */
+  public static Nation of(Location location) {
+    return location == null ? configured() : location.getNation();
   }
 
   /**
    * Resolve a country code to a nation.
    * @param countryCode e.g. "GB-ENG" or "US".
-   * @return the nation; UPSTREAM for any code that is not a UK code.
+   * @return the nation; USA for any code that is not a UK code.
    * @throws IllegalStateException for "GB"/"UK" (ambiguous) and UK nations not implemented yet.
    */
   public static Nation fromCountryCode(String countryCode) {
-    String normalised = countryCode == null ? "" : countryCode.trim().toUpperCase(Locale.ROOT);
-    if (normalised.equals("GB-CYM")) {
-      normalised = WALES.code;
-    }
+    String normalised = canonicalCode(countryCode);
     if (normalised.equals("GB") || normalised.equals("UK")) {
       throw new IllegalStateException(COUNTRY_CODE_KEY + " = " + countryCode
           + " is ambiguous: data differs between the UK nations. Use GB-ENG for England.");
@@ -111,43 +98,78 @@ public enum Nation {
         return nation;
       }
     }
-    return UPSTREAM;
+    return USA;
   }
 
-  /** The configured country code, e.g. "GB-ENG" or "US". */
-  public static String configuredCode() {
-    return Config.get(COUNTRY_CODE_KEY, DEFAULT_COUNTRY_CODE);
+  /** Trim and upper-case a country code, mapping the Welsh-language GB-CYM to GB-WLS. */
+  private static String canonicalCode(String countryCode) {
+    String canonical = countryCode == null ? "" : countryCode.trim().toUpperCase(Locale.ROOT);
+    return canonical.equals("GB-CYM") ? WALES.code : canonical;
+  }
+
+  /**
+   * The country code of this nation, stored in each person's {@code Person.NATION}.
+   * @return e.g. "GB-ENG"; for USA, the configured non-UK code (e.g. "US"), or "US" when
+   *     the configuration names a UK nation.
+   */
+  public String code() {
+    if (code != null) {
+      return code;
+    }
+    String configured = canonicalCode(Config.get(COUNTRY_CODE_KEY, "US"));
+    return configured.isEmpty() || configured.startsWith("GB") || configured.equals("UK")
+        ? "US" : configured;
   }
 
   /**
    * The ISO 3166-1 alpha-2 country, e.g. "GB" for any UK nation, for addresses and birthplaces.
    * @return the ISO country code.
    */
-  public static String isoCountryCode() {
-    return current() == UPSTREAM ? configuredCode() : "GB";
+  public String isoCountryCode() {
+    return this == USA ? code() : "GB";
   }
 
-  /** The default region/state when none is given: the nation default unless configured. */
-  public static String defaultState() {
-    return Config.get("generate.geography.default_state", current().defaultState);
+  /** The default region/state when none is given: this nation's default unless configured. */
+  public String defaultState() {
+    return Config.get("generate.geography.default_state", defaultState);
   }
 
   /**
    * The FHIR identifier system for passports issued by this country, unless configured.
    * @return e.g. http://hl7.org/fhir/sid/passport-GBR for the UK nations.
    */
-  public static String passportUri() {
+  public String passportUri() {
     return Config.get("generate.geography.passport_uri",
-        current() == UPSTREAM ? "http://hl7.org/fhir/sid/passport-USA"
+        this == USA ? "http://hl7.org/fhir/sid/passport-USA"
             : "http://hl7.org/fhir/sid/passport-GBR");
   }
 
-  /** Whether patients in this nation are given NHS numbers. */
-  public boolean usesNhsNumbers() {
-    return this == ENGLAND;
+  /**
+   * A new generator of this nation's personal identifiers (NHS numbers in England, Social
+   * Security Numbers in the USA). Create one per simulation run so identifiers are unique in it.
+   * @return the generator.
+   */
+  public NationalIdGenerator newNationalIdGenerator() {
+    switch (this) {
+      case ENGLAND:
+        return new NhsNumberGenerator();
+      case USA:
+        return new SocialSecurityNumberGenerator();
+      default:
+        throw new IllegalStateException(this + " is not implemented yet: " + notImplementedReason);
+    }
   }
 
-  /** The resource folder for this nation, e.g. "geography/england", or null for UPSTREAM. */
+  /**
+   * The path of one of this nation's resources, e.g. {@code nation.getResource(ETHNICITY)}.
+   * @param resource the resource.
+   * @return the classpath or file path, or null if this nation has no such resource.
+   */
+  public String getResource(Resource resource) {
+    return paths().paths[resource.ordinal()];
+  }
+
+  /** The resource folder for this nation, e.g. "geography/england", or null for USA. */
   public String resourceFolder() {
     return folder == null ? null : "geography/" + folder;
   }
@@ -157,7 +179,7 @@ public enum Nation {
    * <ol>
    *   <li>from its configuration key, if set (an empty value means "none");</li>
    *   <li>for a UK nation, in {@code geography/<nation>/}, if that file exists;</li>
-   *   <li>for UPSTREAM, at upstream Synthea's default location.</li>
+   *   <li>for USA, at Synthea's default (US) location.</li>
    * </ol>
    */
   public enum Resource {
@@ -209,20 +231,7 @@ public enum Nation {
       this.nationFile = nationFile;
     }
 
-    /**
-     * The path of this resource for the configured nation.
-     * @return the path, or null if the nation has no such resource.
-     */
-    public String path() {
-      return resolved().paths[ordinal()];
-    }
-
-    /**
-     * The path of this resource for the given nation.
-     * @param nation the nation.
-     * @return the path, or null if the nation has no such resource.
-     */
-    public String path(Nation nation) {
+    private String resolve(Nation nation) {
       String configured = Config.get(configKey);
       if (configured != null) {
         return configured.trim().isEmpty() ? null : configured.trim();
@@ -236,5 +245,33 @@ public enum Nation {
       String candidate = nation.resourceFolder() + "/" + nationFile;
       return Nation.class.getClassLoader().getResource(candidate) == null ? null : candidate;
     }
+  }
+
+  /** The resource paths of one nation for one configuration version. */
+  private static final class ResolvedPaths {
+    final long configVersion;
+    final String[] paths = new String[Resource.values().length];
+
+    ResolvedPaths(Nation nation, long configVersion) {
+      this.configVersion = configVersion;
+      for (Resource resource : Resource.values()) {
+        paths[resource.ordinal()] = resource.resolve(nation);
+      }
+    }
+  }
+
+  /**
+   * This nation's resource paths. They are looked up for every person, so they are cached and
+   * recomputed only when the configuration changes (for example when a test sets a file).
+   */
+  private ResolvedPaths paths() {
+    long version = Config.version();
+    ResolvedPaths current = resolvedPaths;
+    if (current == null || current.configVersion != version) {
+      // read the version first: a change while resolving makes the next call resolve again
+      current = new ResolvedPaths(this, version);
+      resolvedPaths = current;
+    }
+    return current;
   }
 }

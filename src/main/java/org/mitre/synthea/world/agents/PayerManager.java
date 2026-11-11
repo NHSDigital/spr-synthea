@@ -1,5 +1,9 @@
 package org.mitre.synthea.world.agents;
 
+import static org.mitre.synthea.world.geography.Nation.Resource.PAYERS;
+import static org.mitre.synthea.world.geography.Nation.Resource.PAYER_ELIGIBILITIES;
+import static org.mitre.synthea.world.geography.Nation.Resource.PAYER_PLANS;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -94,22 +98,23 @@ public class PayerManager {
    * @param location the state being loaded.
    */
   public static void loadPayers(Location location) {
+    Nation nation = location.getNation();
     // Load the plan eligibility algorithms.
-    String eligibilitiesFile = Nation.Resource.PAYER_ELIGIBILITIES.path();
+    String eligibilitiesFile = nation.getResource(PAYER_ELIGIBILITIES);
     PlanEligibilityFinder.buildPlanEligibilities(location.state, eligibilitiesFile);
 
     // Build the Plan Finder.
     planFinder = buildPlanFinder();
     if (!statesLoaded.contains(location.state)
-        || !statesLoaded.contains(Location.getAbbreviation(location.state))
-        || !statesLoaded.contains(Location.getStateName(location.state))) {
+        || !statesLoaded.contains(Location.getAbbreviation(nation, location.state))
+        || !statesLoaded.contains(Location.getStateName(nation, location.state))) {
       try {
-        String payerFile = Nation.Resource.PAYERS.path();
+        String payerFile = nation.getResource(PAYERS);
         loadPayers(location, payerFile);
 
         statesLoaded.add(location.state);
-        statesLoaded.add(Location.getAbbreviation(location.state));
-        statesLoaded.add(Location.getStateName(location.state));
+        statesLoaded.add(Location.getAbbreviation(nation, location.state));
+        statesLoaded.add(Location.getStateName(nation, location.state));
       } catch (IOException e) {
         System.err.println("ERROR: unable to load payers for state: " + location.state);
         e.printStackTrace();
@@ -135,7 +140,8 @@ public class PayerManager {
     while (csv.hasNext()) {
       Map<String, String> row = csv.next();
       String payerStates = row.get(STATES_COVERED).toUpperCase();
-      String abbreviation = Location.getAbbreviation(location.state).toUpperCase();
+      String abbreviation =
+          Location.getAbbreviation(location.getNation(), location.state).toUpperCase();
 
       // For now, only allow one U.S. state at a time.
       if (payerStates.contains(abbreviation) || payerStates.contains("*")) {
@@ -146,11 +152,11 @@ public class PayerManager {
       }
     }
 
-    PayerManager.loadPlans();
+    PayerManager.loadPlans(location.getNation());
   }
 
-  private static void loadPlans() {
-    String fileName = Nation.Resource.PAYER_PLANS.path();
+  private static void loadPlans(Nation nation) {
+    String fileName = nation.getResource(PAYER_PLANS);
     Iterator<? extends Map<String, String>> csv = null;
     try {
       String resource = Utilities.readResource(fileName, true, true);

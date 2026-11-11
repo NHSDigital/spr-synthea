@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.FactTable;
+import org.mitre.synthea.helpers.NationalIdGenerator;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.modules.DeathModule;
 import org.mitre.synthea.modules.Immunizations;
@@ -36,6 +37,7 @@ import org.mitre.synthea.world.concepts.HealthRecord.Observation;
 import org.mitre.synthea.world.concepts.HealthRecord.Procedure;
 import org.mitre.synthea.world.concepts.HealthRecord.Report;
 import org.mitre.synthea.world.geography.Location;
+import org.mitre.synthea.world.geography.Nation;
 
 /**
  * This exporter attempts to export synthetic patient data into
@@ -373,6 +375,7 @@ public class CDWExporter {
    */
   private void generateClinicians() {
     Random random = new Random(999L);
+    NationalIdGenerator nationalIds = Nation.configured().newNationalIdGenerator();
     for (int i = 0; i < CLINICIANS; i++) {
       Person clinician = new Person(random.nextLong());
       if (random.nextBoolean()) {
@@ -383,7 +386,7 @@ public class CDWExporter {
       clinician.attributes.put(Person.RACE, "unknown");
       clinician.attributes.put(Person.ETHNICITY, "unknown");
       clinician.attributes.put(Person.FIRST_LANGUAGE, "English");
-      LifecycleModule.birth(clinician, 0L);
+      LifecycleModule.birth(clinician, 0L, nationalIds);
       String name = "Dr. " + clinician.attributes.get(Person.FIRST_NAME);
       name += " " + clinician.attributes.get(Person.LAST_NAME);
       sstaff.addFact("" + i, clean(name));
@@ -465,8 +468,7 @@ public class CDWExporter {
     int primarySta3n = -1;
     Provider provider = person.getProvider(EncounterType.WELLNESS, time);
     if (provider != null) {
-      String state = Location.getStateName(provider.state);
-      String tz = Location.getTimezoneByState(state);
+      String tz = timezone(provider);
       primarySta3n = sta3n.addFact(provider.id, clean(provider.name) + "," + tz);
       location.addFact(provider.id,  clean(provider.name));
     }
@@ -833,8 +835,7 @@ public class CDWExporter {
     s.setLength(0);
     s.append(getNextKey(appointment)).append(',');
     if (encounter.provider != null) {
-      String state = Location.getStateName(encounter.provider.state);
-      String tz = Location.getTimezoneByState(state);
+      String tz = timezone(encounter.provider);
       s.append(sta3n.addFact(encounter.provider.id, clean(encounter.provider.name) + "," + tz));
     } else {
       s.append(primarySta3n);
@@ -887,8 +888,7 @@ public class CDWExporter {
     Integer sta3nValue = null;
     Integer providerSID = (sidStart / 10_000);
     if (encounter.provider != null) {
-      String state = Location.getStateName(encounter.provider.state);
-      String tz = Location.getTimezoneByState(state);
+      String tz = timezone(encounter.provider);
       sta3nValue = sta3n.addFact(encounter.provider.id, clean(encounter.provider.name) + "," + tz);
       providerSID = (Integer) encounter.provider.attributes.get(CLINICIAN_SID);
     }
@@ -965,8 +965,7 @@ public class CDWExporter {
     Integer sta3nValue = null;
     Integer providerSID = (sidStart / 10_000);
     if (encounter.provider != null) {
-      String state = Location.getStateName(encounter.provider.state);
-      String tz = Location.getTimezoneByState(state);
+      String tz = timezone(encounter.provider);
       sta3nValue = sta3n.addFact(encounter.provider.id, clean(encounter.provider.name) + "," + tz);
       providerSID = (Integer) encounter.provider.attributes.get(CLINICIAN_SID);
     }
@@ -1066,8 +1065,7 @@ public class CDWExporter {
     Integer sta3nValue = null;
     Integer providerSID = (sidStart / 10_000);
     if (encounter.provider != null) {
-      String state = Location.getStateName(encounter.provider.state);
-      String tz = Location.getTimezoneByState(state);
+      String tz = timezone(encounter.provider);
       sta3nValue = sta3n.addFact(encounter.provider.id, clean(encounter.provider.name) + "," + tz);
       providerSID = (Integer) encounter.provider.attributes.get(CLINICIAN_SID);
     }
@@ -1239,8 +1237,7 @@ public class CDWExporter {
     Integer providerSID = (sidStart / 10_000);
     Integer locationSID = null;
     if (encounter.provider != null) {
-      String state = Location.getStateName(encounter.provider.state);
-      String tz = Location.getTimezoneByState(state);
+      String tz = timezone(encounter.provider);
       sta3nValue = sta3n.addFact(encounter.provider.id, clean(encounter.provider.name) + "," + tz);
       locationSID = location.addFact(encounter.provider.id, clean(encounter.provider.name));
       providerSID = (Integer) encounter.provider.attributes.get(CLINICIAN_SID);
@@ -1316,8 +1313,7 @@ public class CDWExporter {
     Integer sta3nValue = primarySta3n;
     Integer providerSID = (sidStart / 10_000);
     if (encounter.provider != null) {
-      String state = Location.getStateName(encounter.provider.state);
-      String tz = Location.getTimezoneByState(state);
+      String tz = timezone(encounter.provider);
       sta3nValue = sta3n.addFact(encounter.provider.id, clean(encounter.provider.name) + "," + tz);
       providerSID = (Integer) encounter.provider.attributes.get(CLINICIAN_SID);
     }
@@ -1397,8 +1393,7 @@ public class CDWExporter {
     Integer sta3nValue = primarySta3n;
     Integer providerSID = (sidStart / 10_000);
     if (encounter.provider != null) {
-      String state = Location.getStateName(encounter.provider.state);
-      String tz = Location.getTimezoneByState(state);
+      String tz = timezone(encounter.provider);
       sta3nValue = sta3n.addFact(encounter.provider.id, clean(encounter.provider.name) + "," + tz);
       providerSID = (Integer) encounter.provider.attributes.get(CLINICIAN_SID);
     }
@@ -1556,6 +1551,12 @@ public class CDWExporter {
     write(s.toString(), nonvamed);
   }
 
+  /** The name of the timezone of a provider's state. */
+  private static String timezone(Provider provider) {
+    Nation nation = provider.getNation();
+    return Location.getTimezoneByState(nation, Location.getStateName(nation, provider.state));
+  }
+
   /**
    * Write a single Immunization to the tables.
    *
@@ -1579,8 +1580,7 @@ public class CDWExporter {
     s.append(immunizationSid).append(','); // ImmunizationIEN
     Integer providerSID = (sidStart / 10_000);
     if (encounter.provider != null) {
-      String state = Location.getStateName(encounter.provider.state);
-      String tz = Location.getTimezoneByState(state);
+      String tz = timezone(encounter.provider);
       s.append(sta3n.addFact(encounter.provider.id, clean(encounter.provider.name) + "," + tz));
       providerSID = (Integer) encounter.provider.attributes.get(CLINICIAN_SID);
     } else {
@@ -1589,7 +1589,7 @@ public class CDWExporter {
     s.append(',');
     s.append(personID).append(',');
     Code cvx = immunizationEntry.codes.get(0);
-    int maxInSeries = Immunizations.getMaximumDoses(cvx.code);
+    int maxInSeries = Immunizations.getMaximumDoses(person.getNation(), cvx.code);
     s.append(
         immunizationName.addFact(
             cvx.code, clean(cvx.display) + "," + cvx.code + "," + maxInSeries));

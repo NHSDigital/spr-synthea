@@ -19,6 +19,7 @@ import java.util.concurrent.Future;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mitre.synthea.world.agents.Person;
 
 public class NhsNumberGeneratorTest {
   private static final String[] KEYS = {"generate.patient.nhs_number.range.start",
@@ -44,7 +45,6 @@ public class NhsNumberGeneratorTest {
         Config.set(key, value);
       }
     });
-    NhsNumberGenerator.reset();
   }
 
   private static boolean weightedSumIsDivisibleBy11(String number) {
@@ -107,6 +107,32 @@ public class NhsNumberGeneratorTest {
   }
 
   @Test
+  public void incompleteOrInvalidRangesAreRejected() {
+    String[][] ranges = {{"900000000", null}, {null, "900000000"}, {"900000010", "900000000"},
+        {"-1", "5"}, {"abc", "900000000"}, {" ", ""}};
+    for (String[] range : ranges) {
+      Config.remove("generate.patient.nhs_number.range.start");
+      Config.remove("generate.patient.nhs_number.range.end");
+      if (range[0] != null) {
+        Config.set("generate.patient.nhs_number.range.start", range[0]);
+      }
+      if (range[1] != null) {
+        Config.set("generate.patient.nhs_number.range.end", range[1]);
+      }
+      assertThrows(range[0] + "-" + range[1], IllegalArgumentException.class,
+          NhsNumberGenerator::new);
+    }
+  }
+
+  @Test
+  public void singleRootRangeIsAccepted() {
+    Config.set("generate.patient.nhs_number.range.start", "900000004");
+    Config.set("generate.patient.nhs_number.range.end", "900000004");
+    assertEquals("9000000041",
+        new NhsNumberGenerator().randomNhsNumber(new DefaultRandomNumberGenerator(1)));
+  }
+
+  @Test
   public void rangeBeyondNineDigitsIsRejected() {
     Config.set("generate.patient.nhs_number.range.start", "0");
     Config.set("generate.patient.nhs_number.range.end", "1000000000");
@@ -160,10 +186,23 @@ public class NhsNumberGeneratorTest {
   }
 
   @Test
-  public void sharedInstanceIsResettable() {
-    NhsNumberGenerator first = NhsNumberGenerator.getInstance();
-    assertTrue(first == NhsNumberGenerator.getInstance());
-    NhsNumberGenerator.reset();
-    assertFalse(first == NhsNumberGenerator.getInstance());
+  public void issuesNhsNumbersForPeople() {
+    NationalIdGenerator generator = new NhsNumberGenerator();
+    assertEquals(Person.IDENTIFIER_NHS_NUMBER, generator.attribute());
+    assertEquals("https://fhir.nhs.uk/Id/nhs-number", generator.system());
+    String number = generator.generate(new Person(42L));
+    assertTrue(NhsNumberGenerator.isValid(number));
+    // a person's number depends only on their seed, in a fresh generator
+    assertEquals(number, new NhsNumberGenerator().generate(new Person(42L)));
+  }
+
+  @Test
+  public void reservedNumbersAreNotIssued() {
+    String first = new NhsNumberGenerator().generate(new Person(42L));
+    NationalIdGenerator generator = new NhsNumberGenerator();
+    generator.reserve(first);
+    String second = generator.generate(new Person(42L));
+    assertTrue(NhsNumberGenerator.isValid(second));
+    assertFalse(first.equals(second));
   }
 }

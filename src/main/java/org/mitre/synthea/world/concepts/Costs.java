@@ -73,7 +73,7 @@ public class Costs {
     double locationAdjustment = 1.0;
     if (person != null && person.attributes.containsKey(Person.STATE)) {
       String state = (String) person.attributes.get(Person.STATE);
-      state = Location.getAbbreviation(state);
+      state = Location.getAbbreviation(person.getNation(), state);
       if (table.containsKey(state)) {
         locationAdjustment = (double) table.get(state);
       }
@@ -86,7 +86,7 @@ public class Costs {
     double locationAdjustment = 1.0;
     if (person != null && person.attributes.containsKey(Person.STATE)) {
       String state = (String) person.attributes.get(Person.STATE);
-      state = Location.getAbbreviation(state);
+      state = Location.getAbbreviation(person.getNation(), state);
 
       String key = state + "|" + entry.type;
       if (ENCOUNTER_ADJUSTMENT_FACTORS.containsKey(key)) {
