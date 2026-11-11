@@ -107,6 +107,17 @@ public class NhsNumberGeneratorTest {
   }
 
   @Test
+  public void reservedNumbersAreNeverAllocated() {
+    Config.set("generate.patient.nhs_number.range.start", "900000004");
+    Config.set("generate.patient.nhs_number.range.end", "900000006");
+    NhsNumberGenerator generator = new NhsNumberGenerator();
+    generator.reserve("9000000041");
+    DefaultRandomNumberGenerator random = new DefaultRandomNumberGenerator(1);
+    assertEquals("9000000068", generator.randomNhsNumber(random));
+    assertThrows(IllegalStateException.class, () -> generator.randomNhsNumber(random));
+  }
+
+  @Test
   public void rangeBeyondNineDigitsIsRejected() {
     Config.set("generate.patient.nhs_number.range.start", "0");
     Config.set("generate.patient.nhs_number.range.end", "1000000000");

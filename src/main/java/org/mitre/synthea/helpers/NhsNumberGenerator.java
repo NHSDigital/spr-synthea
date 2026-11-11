@@ -79,6 +79,15 @@ public class NhsNumberGenerator {
     instance = null;
   }
 
+  /**
+   * Mark an NHS number that was supplied from elsewhere (for example a fixed record) as in use,
+   * so that this generator never allocates it to another person.
+   * @param nhsNumber the supplied NHS number.
+   */
+  public void reserve(String nhsNumber) {
+    generatedNhsNumbers.add(nhsNumber);
+  }
+
   private static int[] getDigits(long root) {
     if (root < 0 || root > MAX_ROOT) {
       throw new IllegalArgumentException("NHS root out of range: " + root);

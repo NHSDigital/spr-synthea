@@ -33,6 +33,7 @@ import org.mitre.synthea.export.CDWExporter;
 import org.mitre.synthea.export.Exporter;
 import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.DefaultRandomNumberGenerator;
+import org.mitre.synthea.helpers.NhsNumberGenerator;
 import org.mitre.synthea.helpers.RandomNumberGenerator;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.identity.Entity;
@@ -394,6 +395,9 @@ public class Generator {
         String rawJSON = new String(Files.readAllBytes(
             Paths.get(this.options.fixedRecordPath.getPath())));
         entityManager = EntityManager.fromJSON(rawJSON);
+        // Supplied NHS numbers must never be allocated to anyone else.
+        NhsNumberGenerator nhsNumbers = NhsNumberGenerator.getInstance();
+        entityManager.getNhsNumbers().forEach(nhsNumbers::reserve);
         // Update the population size based on number of people.
         this.options.population = entityManager.getPopulationSize();
         // We'll be using the FixedRecord names, so no numbers should be appended to them.

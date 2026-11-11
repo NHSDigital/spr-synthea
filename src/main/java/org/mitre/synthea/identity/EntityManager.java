@@ -4,8 +4,10 @@ import com.google.gson.GsonBuilder;
 
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Singleton class that manages all Entities in a simulation. This class will typically be
@@ -21,6 +23,29 @@ public class EntityManager {
    */
   public List<Entity> getRecords() {
     return records;
+  }
+
+  /**
+   * Get every NHS number supplied by the seeds and variants of the records.
+   * @return the supplied NHS numbers, without nulls or duplicates
+   */
+  public Set<String> getNhsNumbers() {
+    Set<String> nhsNumbers = new LinkedHashSet<>();
+    for (Entity entity : records) {
+      for (Seed seed : entity.getSeeds()) {
+        addIfPresent(nhsNumbers, seed.getNhsNumber());
+        for (Variant variant : seed.getVariants()) {
+          addIfPresent(nhsNumbers, variant.getNhsNumber());
+        }
+      }
+    }
+    return nhsNumbers;
+  }
+
+  private static void addIfPresent(Set<String> nhsNumbers, String nhsNumber) {
+    if (nhsNumber != null) {
+      nhsNumbers.add(nhsNumber);
+    }
   }
 
   /**
