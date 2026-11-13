@@ -9,7 +9,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -19,40 +18,14 @@ import java.util.concurrent.Future;
 
 import org.apache.commons.lang3.Range;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 /** Behavioral contract for matching CSV rows independently of transition sampling. */
-@RunWith(Parameterized.class)
 public class LookupTableIndexTest {
-  private final LookupTableIndex.Implementation implementation;
-
-  /**
-   * Run the same contract against each implementation.
-   * @return matching algorithms
-   */
-  @Parameterized.Parameters(name = "{0}")
-  public static Collection<Object[]> implementations() {
-    return Arrays.asList(new Object[][] {
-        {LookupTableIndex.Implementation.SCAN},
-        {LookupTableIndex.Implementation.AGE_BUCKETS},
-        {LookupTableIndex.Implementation.QUADTREE}
-    });
-  }
-
-  /**
-   * Select the implementation under test.
-   * @param implementation matching algorithm
-   */
-  public LookupTableIndexTest(LookupTableIndex.Implementation implementation) {
-    this.implementation = implementation;
-  }
-
   /** Both dimensions must contain the point, with inclusive endpoints. */
   @Test
   public void matchesExactAttributesAndInclusiveAgeAndTimeRanges() {
     LookupTableIndex<String> index = LookupTableIndex.create(
-        implementation, Arrays.asList(
+        Arrays.asList(
             new LookupTableIndex.Row<>(Arrays.asList("F", "London"),
                 Range.between(20, 40), Range.between(100L, 200L), "matched")));
 
@@ -80,7 +53,7 @@ public class LookupTableIndexTest {
   /** Exact keys preserve column position and commas within individual values. */
   @Test
   public void keepsExactAttributeColumnsDistinct() {
-    LookupTableIndex<String> index = LookupTableIndex.create(implementation, Arrays.asList(
+    LookupTableIndex<String> index = LookupTableIndex.create(Arrays.asList(
         new LookupTableIndex.Row<>(List.of("A", "B"), null, null, "original"),
         new LookupTableIndex.Row<>(List.of("B", "A"), null, null, "swapped"),
         new LookupTableIndex.Row<>(List.of("a,b", "c"), null, null, "first comma"),
@@ -97,14 +70,14 @@ public class LookupTableIndexTest {
     List<String> attributes = new ArrayList<>(List.of("F"));
     List<LookupTableIndex.Row<String>> rows = new ArrayList<>();
     rows.add(new LookupTableIndex.Row<>(attributes, null, null, "saved"));
-    LookupTableIndex<String> index = LookupTableIndex.create(implementation, rows);
+    LookupTableIndex<String> index = LookupTableIndex.create(rows);
     attributes.set(0, "M");
     rows.clear();
     List<String> results = index.findAll(List.of("F"), null, 0L);
     assertEquals(List.of("saved"), results);
     assertThrows(UnsupportedOperationException.class, () -> results.add("corruption"));
     assertEquals(List.of("saved"), index.findAll(List.of("F"), null, 0L));
-    assertEquals(List.of(), LookupTableIndex.create(implementation, List.of())
+    assertEquals(List.of(), LookupTableIndex.create(List.of())
         .findAll(List.of(), null, 0L));
   }
 
@@ -145,7 +118,7 @@ public class LookupTableIndexTest {
   }
 
   private LookupTableIndex<String> overlappingIndex() {
-    return LookupTableIndex.create(implementation, Arrays.asList(
+    return LookupTableIndex.create(Arrays.asList(
         new LookupTableIndex.Row<>(List.of("F"), null, null, "all"),
         new LookupTableIndex.Row<>(List.of("F"), Range.between(20, 40),
             Range.between(100L, 200L), "overlap"),

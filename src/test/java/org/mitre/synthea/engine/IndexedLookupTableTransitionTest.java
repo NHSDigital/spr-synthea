@@ -12,10 +12,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import org.junit.After;
@@ -23,57 +21,28 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.mitre.synthea.engine.Transition.DistributedTransition;
 import org.mitre.synthea.engine.Transition.DistributedTransitionOption;
 import org.mitre.synthea.engine.Transition.LookupTableTransition;
 import org.mitre.synthea.engine.Transition.LookupTableTransitionOption;
 import org.mitre.synthea.engine.lookup.LookupTable;
-import org.mitre.synthea.engine.lookup.LookupTableIndex.Implementation;
 import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.world.agents.Person;
 
 /** Exercises real CSV loading and probability selection through Transition.follow(). */
-@RunWith(Parameterized.class)
 public class IndexedLookupTableTransitionTest {
   private static final long TIME = Instant.parse("2020-06-01T00:00:00Z").toEpochMilli();
   private final Map<String, String> originalConfig = new HashMap<>();
-  private final Implementation implementation;
-
-  /**
-   * Exercise each configurable index through the real transition interface.
-   * @return supported matching algorithms
-   */
-  @Parameterized.Parameters(name = "{0}")
-  public static Collection<Object[]> implementations() {
-    return Arrays.asList(new Object[][] {
-        {Implementation.SCAN}, {Implementation.AGE_BUCKETS}, {Implementation.QUADTREE}
-    });
-  }
-
-  /**
-   * Select the matching algorithm for this test run.
-   * @param implementation index to configure
-   */
-  public IndexedLookupTableTransitionTest(Implementation implementation) {
-    this.implementation = implementation;
-  }
 
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-  /** Isolate table paths and implementation selection from other tests. */
+  /** Isolate table paths from other tests. */
   @Before
   public void configure() {
-    for (String key : Arrays.asList("generate.lookup_tables",
-        "generate.lookup_tables.implementation")) {
-      originalConfig.put(key, Config.get(key));
-    }
+    originalConfig.put("generate.lookup_tables", Config.get("generate.lookup_tables"));
     Config.set("generate.lookup_tables", temporaryFolder.getRoot().getAbsolutePath() + "/");
-    Config.set("generate.lookup_tables.implementation",
-        implementation.name().toLowerCase(Locale.ROOT));
   }
 
   /** Restore process-wide configuration. */
@@ -151,7 +120,7 @@ public class IndexedLookupTableTransitionTest {
   public void resolvesOneStateTransitionDistributionFromMatchingRules() throws Exception {
     write("distributions.csv", "gender,age,A,B\nF,0-150,0.25,0.75\nF,20-40,1,0\n");
     LookupTable table = LookupTable.load(Config.get("generate.lookup_tables")
-        + "distributions.csv", List.of("A", "B"), implementation);
+        + "distributions.csv", List.of("A", "B"));
     List<DistributedTransitionOption> distribution = table.findDistribution(person(42), TIME);
     assertEquals(2, distribution.size());
     DistributedTransition resolved = new DistributedTransition(distribution);
@@ -201,39 +170,6 @@ public class IndexedLookupTableTransitionTest {
     write("schema.csv", "gender,A,B\nF,1,0\n");
     transition("schema.csv");
     assertThrows(IllegalArgumentException.class, () -> transition("schema.csv", "A", "C"));
-  }
-
-  /** Selecting another implementation for an already-used filename remains supported. */
-  @Test
-  public void switchesImplementationsAndRejectsUnknownNames() throws Exception {
-    write("switch.csv", "gender,age,A,B\nF,30-40,0.25,0.75\n");
-    for (Implementation selected : Implementation.values()) {
-      Config.set("generate.lookup_tables.implementation", selected.name());
-      LookupTableTransition transition = transition("switch.csv");
-      Person actual = person(4242);
-      Person expected = person(4242);
-      DistributedTransition reference = new DistributedTransition(Arrays.asList(
-          new DistributedTransitionOption("A", 0.25),
-          new DistributedTransitionOption("B", 0.75)));
-      for (int draw = 0; draw < 20; draw++) {
-        assertEquals(reference.follow(expected, TIME), transition.follow(actual, TIME));
-      }
-      assertEquals(expected.getCount(), actual.getCount());
-    }
-    Config.set("generate.lookup_tables.implementation", "unknown");
-    assertThrows(IllegalArgumentException.class, () -> transition("switch.csv"));
-  }
-
-  /** Confusing the algorithm selector with the data directory gives an actionable correction. */
-  @Test
-  public void reportsImplementationPassedAsLookupDirectory() {
-    String selected = implementation.name().toLowerCase(Locale.ROOT);
-    Config.set("generate.lookup_tables", selected);
-    IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
-        () -> transition("covid-19-severity-outcomes.csv"));
-    assertTrue(error.getMessage(), error.getMessage().contains("lookup data directory"));
-    assertTrue(error.getMessage(), error.getMessage()
-        .contains("--generate.lookup_tables.implementation=" + selected));
   }
 
   /** Serialized module transitions preserve their schema, index and fallback behavior. */

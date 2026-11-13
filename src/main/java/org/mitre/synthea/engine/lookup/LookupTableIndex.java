@@ -20,11 +20,6 @@ import org.apache.commons.lang3.Range;
  * @param <T> rule value, which must be serializable if the index is serialized
  */
 public final class LookupTableIndex<T> implements Serializable {
-  /** Selectable matching algorithms with the same all-match contract. */
-  public enum Implementation {
-    SCAN, AGE_BUCKETS, QUADTREE
-  }
-
   /** A transition eligibility rule, its age/time rectangle and its associated value. */
   public static final class Row<T> implements Serializable {
     final List<String> attributes;
@@ -62,43 +57,28 @@ public final class LookupTableIndex<T> implements Serializable {
     }
   }
 
-  private final Map<List<String>, RangeIndex<T>> groups;
+  private final Map<List<String>, QuadTreeRangeIndex<T>> groups;
 
-  private LookupTableIndex(Map<List<String>, RangeIndex<T>> groups) {
+  private LookupTableIndex(Map<List<String>, QuadTreeRangeIndex<T>> groups) {
     this.groups = Map.copyOf(groups);
   }
 
   /**
    * Build a shared index of transition eligibility rules in declaration order.
-   * @param implementation matching algorithm
    * @param rows eligibility rules and their associated values
    * @param <T> rule value type
    * @return immutable index
    */
-  public static <T> LookupTableIndex<T> create(Implementation implementation, List<Row<T>> rows) {
-    Objects.requireNonNull(implementation);
+  public static <T> LookupTableIndex<T> create(List<Row<T>> rows) {
     Map<List<String>, List<Entry<T>>> grouped = new HashMap<>();
     for (int order = 0; order < rows.size(); order++) {
       Row<T> row = rows.get(order);
       grouped.computeIfAbsent(row.attributes, key -> new ArrayList<>())
           .add(new Entry<>(row, order));
     }
-    Map<List<String>, RangeIndex<T>> indexes = new HashMap<>();
-    grouped.forEach((attributes, entries) -> {
-      switch (implementation) {
-        case SCAN:
-          indexes.put(attributes, new ScanRangeIndex<>(entries));
-          break;
-        case AGE_BUCKETS:
-          indexes.put(attributes, new AgeBucketRangeIndex<>(entries));
-          break;
-        case QUADTREE:
-          indexes.put(attributes, new QuadTreeRangeIndex<>(entries));
-          break;
-        default:
-          throw new UnsupportedOperationException("Index not implemented: " + implementation);
-      }
-    });
+    Map<List<String>, QuadTreeRangeIndex<T>> indexes = new HashMap<>();
+    grouped.forEach((attributes, entries) ->
+        indexes.put(attributes, new QuadTreeRangeIndex<>(entries)));
     return new LookupTableIndex<>(indexes);
   }
 
@@ -110,7 +90,7 @@ public final class LookupTableIndex<T> implements Serializable {
    * @return immutable list of matching rule values, possibly empty
    */
   public List<T> findAll(List<String> attributes, Integer age, long time) {
-    RangeIndex<T> index = groups.get(attributes);
+    QuadTreeRangeIndex<T> index = groups.get(attributes);
     if (index == null) {
       return List.of();
     }
@@ -122,22 +102,5 @@ public final class LookupTableIndex<T> implements Serializable {
       values.add(match.row.value);
     }
     return List.copyOf(values);
-  }
-
-  private static final class ScanRangeIndex<T> implements RangeIndex<T> {
-    private final List<Entry<T>> entries;
-
-    ScanRangeIndex(List<Entry<T>> entries) {
-      this.entries = List.copyOf(entries);
-    }
-
-    @Override
-    public void collect(Integer age, long time, List<Entry<T>> results) {
-      for (Entry<T> entry : entries) {
-        if (entry.matches(age, time)) {
-          results.add(entry);
-        }
-      }
-    }
   }
 }

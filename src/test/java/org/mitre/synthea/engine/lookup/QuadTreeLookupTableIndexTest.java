@@ -9,7 +9,6 @@ import java.util.List;
 
 import org.apache.commons.lang3.Range;
 import org.junit.Test;
-import org.mitre.synthea.engine.lookup.LookupTableIndex.Implementation;
 import org.mitre.synthea.engine.lookup.LookupTableIndex.Row;
 
 /** Tests rectangle matching through the shared lookup interface. */
@@ -23,7 +22,7 @@ public class QuadTreeLookupTableIndexTest {
       rows.add(row(coordinate, coordinate, coordinate, coordinate, "point" + coordinate));
     }
     rows.add(row(10, 30, 10, 30, "overlap"));
-    LookupTableIndex<String> index = LookupTableIndex.create(Implementation.QUADTREE, rows);
+    LookupTableIndex<String> index = LookupTableIndex.create(rows);
     assertEquals(Arrays.asList("all", "point20", "overlap"),
         index.findAll(Collections.emptyList(), 20, 20L));
     assertEquals(Collections.singletonList("all"),
@@ -40,7 +39,7 @@ public class QuadTreeLookupTableIndexTest {
       rows.add(new Row<>(Collections.emptyList(), Range.between(coordinate, coordinate),
           null, "age" + coordinate));
     }
-    LookupTableIndex<String> index = LookupTableIndex.create(Implementation.QUADTREE, rows);
+    LookupTableIndex<String> index = LookupTableIndex.create(rows);
     assertEquals(Arrays.asList("all", "age20"),
         index.findAll(Collections.emptyList(), 20, Long.MIN_VALUE));
     assertEquals(Collections.singletonList("all"),
@@ -61,7 +60,7 @@ public class QuadTreeLookupTableIndexTest {
           "time" + coordinate));
     }
     rows.add(new Row<>(Collections.emptyList(), null, Range.between(-1L, 0L), "split"));
-    LookupTableIndex<String> index = LookupTableIndex.create(Implementation.QUADTREE, rows);
+    LookupTableIndex<String> index = LookupTableIndex.create(rows);
     assertEquals(Arrays.asList("all", "minimum"),
         index.findAll(Collections.emptyList(), null, Long.MIN_VALUE));
     assertEquals(Arrays.asList("all", "maximum"),
@@ -81,7 +80,7 @@ public class QuadTreeLookupTableIndexTest {
     for (int duplicate = 0; duplicate < 1000; duplicate++) {
       rows.add(row(10, 20, 30, 40, "same"));
     }
-    LookupTableIndex<String> index = LookupTableIndex.create(Implementation.QUADTREE, rows);
+    LookupTableIndex<String> index = LookupTableIndex.create(rows);
     assertEquals(Collections.nCopies(1000, "same"),
         index.findAll(Collections.emptyList(), 10, 30L));
     assertEquals(Collections.nCopies(1000, "same"),
@@ -102,7 +101,7 @@ public class QuadTreeLookupTableIndexTest {
       rows.add(row(coordinate, coordinate, coordinate, coordinate, "point" + coordinate));
     }
     rows.add(new Row<>(Collections.emptyList(), null, Range.between(0L, 0L), "time-zero"));
-    LookupTableIndex<String> index = LookupTableIndex.create(Implementation.QUADTREE, rows);
+    LookupTableIndex<String> index = LookupTableIndex.create(rows);
     assertEquals(Arrays.asList("all", "minimum"),
         index.findAll(Collections.emptyList(), Integer.MIN_VALUE, Long.MIN_VALUE));
     assertEquals(Arrays.asList("all", "maximum"),

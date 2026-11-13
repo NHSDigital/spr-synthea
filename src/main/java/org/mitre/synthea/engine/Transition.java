@@ -5,13 +5,11 @@ import com.google.gson.JsonObject;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import org.apache.commons.lang3.Range;
 import org.apache.commons.math3.distribution.EnumeratedDistribution;
 import org.mitre.synthea.engine.lookup.LookupTable;
-import org.mitre.synthea.engine.lookup.LookupTableIndex;
 import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.world.agents.PayerManager;
 import org.mitre.synthea.world.agents.Person;
@@ -279,24 +277,8 @@ public abstract class Transition implements Serializable {
         defaultTransitions.add(new DistributedTransitionOption(option.transition,
             option.defaultProbability));
       }
-      String configured = Config.get("generate.lookup_tables.implementation", "quadtree");
-      LookupTableIndex.Implementation implementation;
-      try {
-        implementation = LookupTableIndex.Implementation.valueOf(
-            configured.toUpperCase(Locale.ROOT));
-      } catch (IllegalArgumentException e) {
-        throw new IllegalArgumentException("Unknown lookup table implementation '" + configured
-            + "'. Expected scan, age_buckets or quadtree.", e);
-      }
       String directory = Config.get("generate.lookup_tables");
-      for (LookupTableIndex.Implementation candidate : LookupTableIndex.Implementation.values()) {
-        if (candidate.name().equalsIgnoreCase(directory)) {
-          throw new IllegalArgumentException("generate.lookup_tables specifies the lookup data "
-              + "directory. To select a matching implementation, use "
-              + "--generate.lookup_tables.implementation=" + directory.toLowerCase(Locale.ROOT));
-        }
-      }
-      lookupTable = LookupTable.load(directory + name, states, implementation);
+      lookupTable = LookupTable.load(directory + name, states);
     }
 
     @Override

@@ -15,7 +15,7 @@ import org.mitre.synthea.engine.lookup.LookupTableIndex.Entry;
  *
  * @param <T> rule value, typically a state-transition probability distribution
  */
-final class QuadTreeRangeIndex<T> implements RangeIndex<T> {
+final class QuadTreeRangeIndex<T> implements Serializable {
   private static final int LEAF_SIZE = 16;
   private static final int MAX_DEPTH = 64;
 
@@ -25,8 +25,7 @@ final class QuadTreeRangeIndex<T> implements RangeIndex<T> {
     root = new Node<>(rows, 0);
   }
 
-  @Override
-  public void collect(Integer age, long time, List<Entry<T>> results) {
+  void collect(Integer age, long time, List<Entry<T>> results) {
     root.collect(age, time, results);
   }
 

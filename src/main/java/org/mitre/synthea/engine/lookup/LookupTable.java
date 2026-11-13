@@ -26,8 +26,7 @@ public final class LookupTable implements Serializable {
   private final List<String> attributes;
   private final LookupTableIndex<List<DistributedTransitionOption>> index;
 
-  private LookupTable(String fileName, List<String> transitions,
-      LookupTableIndex.Implementation implementation) {
+  private LookupTable(String fileName, List<String> transitions) {
     this.fileName = fileName;
     List<? extends Map<String, String>> rows;
     try {
@@ -75,25 +74,22 @@ public final class LookupTable implements Serializable {
       }
       rules.add(new LookupTableIndex.Row<>(exact, ageRange, timeRange, List.copyOf(probabilities)));
     }
-    index = LookupTableIndex.create(implementation, rules);
+    index = LookupTableIndex.create(rules);
   }
 
   /**
    * Load transition rules, sharing their attribute schema and index with equivalent transitions.
    * @param fileName resource name or filesystem path including the configured directory
    * @param transitions destination state names within the clinical condition module
-   * @param implementation matching algorithm
-   * @return cached table, keyed by path, transition schema and matching algorithm
+   * @return cached table, keyed by path and transition schema
    */
-  public static LookupTable load(String fileName, List<String> transitions,
-      LookupTableIndex.Implementation implementation) {
+  public static LookupTable load(String fileName, List<String> transitions) {
     List<String> schema = List.copyOf(transitions);
     List<String> key = new ArrayList<>();
     key.add(fileName);
-    key.add(implementation.name());
     key.addAll(schema);
     return TABLES.computeIfAbsent(List.copyOf(key),
-        ignored -> new LookupTable(fileName, schema, implementation));
+        ignored -> new LookupTable(fileName, schema));
   }
 
   private Range<Integer> parseAgeRange(String value) {

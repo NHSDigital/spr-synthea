@@ -11,7 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -20,19 +19,18 @@ import java.util.stream.Stream;
 
 import org.apache.commons.lang3.Range;
 import org.junit.Test;
-import org.mitre.synthea.engine.lookup.LookupTableIndex.Implementation;
 import org.mitre.synthea.engine.lookup.LookupTableIndex.Row;
 import org.mitre.synthea.helpers.SimpleCSV;
 import org.mitre.synthea.helpers.Utilities;
 
-/** Compares range indexes against the scan reference using the actual module lookup tables. */
+/** Compares the quadtree against direct matching using the actual module lookup tables. */
 public class LookupTableCorpusTest {
   /**
    * Every module-referenced table agrees at its rule corners and immediately outside each edge.
    * Probabilities are irrelevant here: row numbers expose lost, duplicated or reordered matches.
    */
   @Test
-  public void indexesAgreeAtBundledRuleBoundaries() throws Exception {
+  public void quadtreeAgreesAtBundledRuleBoundaries() throws Exception {
     Map<String, Integer> transitionCounts = referencedTables();
     int tables = 0;
     int queries = 0;
@@ -101,12 +99,9 @@ public class LookupTableCorpusTest {
         }
       }
 
-      Map<Implementation, LookupTableIndex<Integer>> indexes = new EnumMap<>(Implementation.class);
-      for (Implementation implementation : Implementation.values()) {
-        indexes.put(implementation, LookupTableIndex.create(implementation, rules));
-      }
+      LookupTableIndex<Integer> index = LookupTableIndex.create(rules);
       for (Query probe : probes) {
-        compare(indexes, resource, probe);
+        compare(index, rules, resource, probe);
       }
       queries += probes.size();
       tables++;
@@ -119,21 +114,24 @@ public class LookupTableCorpusTest {
     assertTrue("Tables without range columns were not exercised", exactOnlyTables > 0);
   }
 
-  private void compare(Map<Implementation, LookupTableIndex<Integer>> indexes, String resource,
-      Query probe) {
-    List<Integer> expected = indexes.get(Implementation.SCAN)
-        .findAll(probe.attributes, probe.age, probe.time);
+  private void compare(LookupTableIndex<Integer> index, List<Row<Integer>> rules,
+      String resource, Query probe) {
+    List<Integer> expected = new ArrayList<>();
+    for (Row<Integer> rule : rules) {
+      if (rule.attributes.equals(probe.attributes)
+          && (rule.ageRange == null
+              || (probe.age != null && rule.ageRange.contains(probe.age)))
+          && (rule.timeRange == null || rule.timeRange.contains(probe.time))) {
+        expected.add(rule.value);
+      }
+    }
     if (probe.matchingRow != null) {
       assertTrue("Rule does not match its own corner: " + resource + " row " + probe.matchingRow,
           expected.contains(probe.matchingRow));
     }
-    for (Implementation implementation : Implementation.values()) {
-      if (implementation != Implementation.SCAN) {
-        assertEquals(resource + " " + implementation + " " + probe.attributes
-            + " age=" + probe.age + " time=" + probe.time,
-            expected, indexes.get(implementation).findAll(probe.attributes, probe.age, probe.time));
-      }
-    }
+    assertEquals(resource + " " + probe.attributes
+        + " age=" + probe.age + " time=" + probe.time,
+        expected, index.findAll(probe.attributes, probe.age, probe.time));
   }
 
   private static final class Query {
