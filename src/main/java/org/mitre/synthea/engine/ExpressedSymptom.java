@@ -255,11 +255,11 @@ public class ExpressedSymptom implements Cloneable, Serializable {
    */
   public int getSymptom() {
     int max = 0;
-    for (String module : sources.keySet()) {
-      Integer value = sources.get(module).getCurrentValue();
-      Boolean isResolved = sources.get(module).isResolved();
-      if (value != null && value.intValue() > max && !isResolved) {
-        max = value.intValue();
+    for (Map.Entry<String, SymptomSource> entry : sources.entrySet()) {
+      SymptomSource source = entry.getValue();
+      Integer value = source.getCurrentValue();
+      if (value != null && value > max && !source.isResolved()) {
+        max = value;
       }
     }
     return max;

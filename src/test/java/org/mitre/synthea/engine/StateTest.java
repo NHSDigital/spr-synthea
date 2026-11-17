@@ -961,6 +961,22 @@ public class StateTest {
   }
 
   @Test
+  public void wellnessEncounterCanOnlyBeUsedOnceBeforeItsTrackingIsReset() throws Exception {
+    Module module = TestHelper.getFixture("encounter.json");
+    State encounter = module.getState("Annual_Physical");
+    simulateWellnessEncounter(module, person, time);
+    assertTrue(encounter.process(person, time));
+    String key = EncounterModule.ACTIVE_WELLNESS_ENCOUNTER + " " + module.name;
+    assertEquals(Boolean.TRUE, person.attributes.get(key));
+    assertFalse(encounter.process(person, time));
+    person.attributes.remove(key);
+    assertFalse(encounter.process(person, time));
+    assertFalse(encounter.process(person, time));
+    person.attributes.put(key, false);
+    assertTrue(encounter.process(person, time));
+  }
+
+  @Test
   public void wellness_encounter_diagnoses_condition() throws Exception {
     Module module = TestHelper.getFixture("encounter.json");
     // First, onset the Diabetes!
@@ -1872,7 +1888,7 @@ public class StateTest {
 
     assertEquals(6, person.history.size());
     assertEquals("Initial", person.history.get(5).name);
-    assertEquals(time, (long)person.history.get(5).entered);
+    assertEquals(time, (long) person.history.get(5).entered);
     assertEquals(time, (long) person.history.get(5).exited);
 
     assertEquals("2_Day_Delay", person.history.get(4).name);
@@ -1953,8 +1969,8 @@ public class StateTest {
       //     sub.Initial: entered 1/1/2020 exited 1/1/2020
       //     sub.Delay: entered 1/1/2020 exited 12/31/2020
       //     sub.Terminal: entered 12/31/2020 exited 12/31/2020
-      // previousStateExited = person.history.get(15).exited;
-      // currentStateEntered = person.history.get(14).entered;
+      // previousStateExited = person.getHistory().get(15).exited;
+      // currentStateEntered = person.getHistory().get(14).entered;
       // assertEquals(previousStateExited, currentStateEntered);
 
       assertEquals("Delay", person.history.get(13).name);
@@ -1978,8 +1994,8 @@ public class StateTest {
 
       assertEquals("Initial", person.history.get(10).name);
       assertEquals("Medication Submodule Module", person.history.get(10).module.submoduleName);
-      // previousStateExited = person.history.get(11).exited;
-      // currentStateEntered = person.history.get(10).entered;
+      // previousStateExited = person.getHistory().get(11).exited;
+      // currentStateEntered = person.getHistory().get(10).entered;
       // assertEquals(previousStateExited, currentStateEntered);
       // see notes above for why this property doesn't hold
 
@@ -2010,8 +2026,8 @@ public class StateTest {
 
       assertEquals("Call_MedicationOrder_Submodule", person.history.get(5).name);
       assertEquals("Encounter Submodule Module", person.history.get(5).module.submoduleName);
-      // previousStateExited = person.history.get(6).exited;
-      // currentStateEntered = person.history.get(5).entered;
+      // previousStateExited = person.getHistory().get(6).exited;
+      // currentStateEntered = person.getHistory().get(5).entered;
       // assertEquals(previousStateExited, currentStateEntered);
       // note that this is the same state object at position 11 and 5
       // even though it was only called once it shows up twice
@@ -2033,8 +2049,8 @@ public class StateTest {
 
       assertEquals("Call_Encounter_Submodule", person.history.get(2).name);
       assertEquals("Recursive Calls Submodules Module", person.history.get(2).module.name);
-      // previousStateExited = person.history.get(3).exited;
-      // currentStateEntered = person.history.get(2).entered;
+      // previousStateExited = person.getHistory().get(3).exited;
+      // currentStateEntered = person.getHistory().get(2).entered;
       // assertEquals(previousStateExited, currentStateEntered);
       // see note above, this is the same as position 15
 

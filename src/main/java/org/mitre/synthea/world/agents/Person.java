@@ -12,11 +12,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -28,9 +30,11 @@ import org.mitre.synthea.helpers.Config;
 import org.mitre.synthea.helpers.ConstantValueGenerator;
 import org.mitre.synthea.helpers.DefaultRandomNumberGenerator;
 import org.mitre.synthea.helpers.RandomNumberGenerator;
+import org.mitre.synthea.helpers.TransitionMetrics;
 import org.mitre.synthea.helpers.Utilities;
 import org.mitre.synthea.helpers.ValueGenerator;
 import org.mitre.synthea.identity.Entity;
+import org.mitre.synthea.modules.EncounterModule;
 import org.mitre.synthea.modules.QualityOfLifeModule;
 import org.mitre.synthea.world.concepts.HealthRecord;
 import org.mitre.synthea.world.concepts.HealthRecord.Code;
@@ -445,9 +449,8 @@ public class Person implements Serializable, RandomNumberGenerator, QuadTreeElem
    * @return true if the person is alive, false otherwise
    */
   public boolean alive(long time) {
-    boolean born = attributes.containsKey(Person.BIRTHDATE);
     Long died = (Long) attributes.get(Person.DEATHDATE);
-    return (born && (died == null || died > time));
+    return (died == null || died > time) && attributes.containsKey(Person.BIRTHDATE);
   }
 
   /**
@@ -670,6 +673,33 @@ public class Person implements Serializable, RandomNumberGenerator, QuadTreeElem
   }
 
   /**
+   * Activate a module's history, creating its initial visit on first use.
+   * @param key module or submodule history key
+   * @param initialState factory for a fresh initial state, called only for a new history
+   * @return the active history
+   */
+  @SuppressWarnings("unchecked")
+  public List<State> getOrCreateHistory(String key, Supplier<State> initialState) {
+    history = (List<State>) attributes.computeIfAbsent(key, ignored -> {
+      List<State> created = new LinkedList<>();
+      State initial = initialState.get();
+      created.add(initial);
+      // A fresh submodule invocation retains the existing first-entry metrics semantics.
+      TransitionMetrics.enter(key, initial.name, true);
+      return created;
+    });
+    return history;
+  }
+
+  /**
+   * Discard a completed submodule's separately stored history.
+   * @param key submodule history key
+   */
+  public void removeHistory(String key) {
+    attributes.remove(key);
+  }
+
+  /**
    * Check for prior existence of specified state.
    * @param name The name of the state.
    * @return True if the state exists, false otherwise.
@@ -702,6 +732,25 @@ public class Person implements Serializable, RandomNumberGenerator, QuadTreeElem
       }
     }
     return false;
+  }
+
+  /**
+   * Initialize wellness encounter tracking without resetting an existing status.
+   * @param moduleName name of the module sharing the encounter
+   */
+  public void ensureWellnessEncounterTracking(String moduleName) {
+    String key = EncounterModule.ACTIVE_WELLNESS_ENCOUNTER + " " + moduleName;
+    attributes.putIfAbsent(key, Boolean.FALSE);
+  }
+
+  /**
+   * Mark an already tracked wellness encounter as used, without creating a new pass.
+   * @param moduleName name of the module sharing the encounter
+   * @return previous status: false for a fresh pass, true if used, or null if not tracked
+   */
+  public Boolean checkInWellnessEncounter(String moduleName) {
+    String key = EncounterModule.ACTIVE_WELLNESS_ENCOUNTER + " " + moduleName;
+    return (Boolean) attributes.replace(key, Boolean.TRUE);
   }
 
   /**
